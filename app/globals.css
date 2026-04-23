@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --surface: rgba(255, 255, 255, 0.4);
+  --surface-border: rgba(255, 255, 255, 0.65);
+  --blob-1: rgba(56, 189, 248, 0.28);
+  --blob-2: rgba(59, 130, 246, 0.22);
+  --blob-3: rgba(14, 165, 233, 0.2);
+  --blob-4: rgba(34, 211, 238, 0.16);
+  --ring: #2563eb;
+}
+
+:root[data-theme="dark"] {
+  --background: #020617;
+  --foreground: #e2e8f0;
+  --surface: rgba(15, 23, 42, 0.45);
+  --surface-border: rgba(148, 163, 184, 0.22);
+  --blob-1: rgba(30, 64, 175, 0.3);
+  --blob-2: rgba(14, 116, 144, 0.28);
+  --blob-3: rgba(59, 130, 246, 0.2);
+  --blob-4: rgba(15, 23, 42, 0.35);
+  --ring: #60a5fa;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Animation Delay Utilities */
+@layer utilities {
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+
+  .animation-delay-4000 {
+    animation-delay: 4s;
+  }
+
+  .animation-delay-6000 {
+    animation-delay: 6s;
+  }
+}
+
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
+body {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(circle at 10% 10%, var(--blob-1), transparent 35%),
+    radial-gradient(circle at 90% 20%, var(--blob-2), transparent 35%),
+    radial-gradient(circle at 40% 90%, var(--blob-3), transparent 40%);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+  transition: background-color 400ms ease, color 300ms ease;
+}
+
+* {
+  transition-property: background-color, border-color, color, box-shadow, transform;
+  transition-duration: 260ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}

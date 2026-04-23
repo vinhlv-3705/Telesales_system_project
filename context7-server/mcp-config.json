@@ -1,0 +1,33 @@
+﻿{
+  "mcpServers": {
+    "telesales-crm": {
+      "command": "node",
+      "args": ["server.js"],
+      "env": {
+        "NODE_ENV": "development"
+      }
+    }
+  },
+  "context": {
+    "folderMap": {
+      "app": "Main application code",
+      "components": "React components",
+      "context7-server": "MCP server implementation",
+      "specs": "Project specifications and knowledge base",
+      "public": "Static assets"
+    },
+    "businessLogic": {
+      "callLogManagement": "Core logic for creating and updating telesales call logs",
+      "dataPersistence": "Local storage handling for telesales call data",
+      "statusTracking": "Track customer call status and callback schedule",
+      "dashboardStatistics": "Aggregate dashboard metrics and status breakdown"
+    },
+    "keyFeatures": [
+      "Log telesales calls",
+      "Search customer call history",
+      "Update call status and follow-up date",
+      "View dashboard stats from MCP resource",
+      "Responsive dashboard with charts"
+    ]
+  }
+}

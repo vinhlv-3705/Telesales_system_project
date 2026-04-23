@@ -1,0 +1,22 @@
+{
+  "workflow": "speckit",
+  "specName": "telesales-crm-refactor",
+  "branch": "telesales-crm-refactor",
+  "selectedAt": "2026-04-23T03:30:00.000Z",
+  "currentStep": "specify",
+  "status": "draft",
+  "stepHistory": {
+    "specify": {
+      "startedAt": "2026-04-23T03:30:00.000Z",
+      "completedAt": null
+    }
+  },
+  "transitions": [
+    {
+      "at": "2026-04-23T03:30:00.000Z",
+      "fromSpecName": "specs",
+      "toSpecName": "telesales-crm-refactor",
+      "note": "Refactor business domain from Expense Tracker to Telesales CRM."
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum CallStatus {
+  CHOT_DON
+  TU_CHOI
+  MOI
+  UPSALE
+}
+
+model Customer {
+  id         String    @id @default(cuid())
+  name       String
+  phone      String    @unique
+  email      String?
+  notes      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  callLogs   CallLog[]
+}
+
+model CallLog {
+  id           String     @id @default(cuid())
+  customerId   String
+  customer     Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  callStatus   CallStatus @default(MOI)
+  revenue      Float      @default(0)
+  callbackDate DateTime?
+  note         String?
+  callAt       DateTime   @default(now())
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([customerId])
+  @@index([callStatus])
+  @@index([callbackDate])
+}
