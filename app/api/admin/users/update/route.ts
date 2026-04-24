@@ -50,29 +50,11 @@ export async function POST(request: Request) {
     }
 
     if (action === "LOCK") {
-      try {
-        await prisma.user.update({ where: { id: userId }, data: { isLocked: true, lockedAt: new Date() } });
-      } catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
-        if (message.includes("Unknown argument `isLocked`") || message.includes("Unknown argument `lockedAt`")) {
-          await prisma.$executeRaw`UPDATE user SET isLocked = ${1}, lockedAt = ${new Date()} WHERE id = ${userId}`;
-        } else {
-          throw e;
-        }
-      }
+      await prisma.user.update({ where: { id: userId }, data: { isLocked: true, lockedAt: new Date() } });
       return NextResponse.json({ success: true });
     }
 
-    try {
-      await prisma.user.update({ where: { id: userId }, data: { isLocked: false, lockedAt: null } });
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      if (message.includes("Unknown argument `isLocked`") || message.includes("Unknown argument `lockedAt`")) {
-        await prisma.$executeRaw`UPDATE user SET isLocked = ${0}, lockedAt = ${null} WHERE id = ${userId}`;
-      } else {
-        throw e;
-      }
-    }
+    await prisma.user.update({ where: { id: userId }, data: { isLocked: false, lockedAt: null } });
     return NextResponse.json({ success: true });
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
