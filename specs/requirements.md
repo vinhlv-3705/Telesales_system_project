@@ -1,142 +1,112 @@
-﻿# Tài liệu Đặc tả Telesales CRM (Refactor Baseline)
+﻿# Tài liệu Yêu cầu Nghiệp vụ Telesales CRM
 
 ## 1. Tổng quan
-Ứng dụng được chuyển đổi từ mô hình "Quản lý chi tiêu" sang "Telesales CRM", tập trung quản lý nhật ký cuộc gọi bán hàng, trạng thái xử lý khách hàng và doanh thu phát sinh theo từng cuộc gọi. Tài liệu này là baseline đặc tả cho giai đoạn refactor code.
+Hệ thống là một Telesales CRM tối giản nhằm:
 
-## 2. Mục tiêu refactor nghiệp vụ
-### 2.1 Mapping khái niệm cũ -> mới
-- **Transaction (Giao dịch)** -> **CallLog (Nhật ký cuộc gọi)**
-- **Category (Danh mục)** -> **CallStatus (Trạng thái cuộc gọi)**
-- **Amount (Số tiền)** -> **Revenue (Doanh thu cuộc gọi)**
+- Quản lý danh sách khách hàng và phân công cho nhân viên telesales.
+- Ghi nhận nhật ký cuộc gọi (kết quả, ghi chú, doanh thu, lịch hẹn gọi lại).
+- Cung cấp bảng điều khiển (dashboard) cho admin theo dõi hiệu suất và doanh thu.
 
-### 2.2 Phạm vi thay đổi
-- Đổi tên thực thể, field, component, storage key và mô tả UI sang ngữ cảnh telesales.
-- Giữ nguyên kiến trúc kỹ thuật hiện tại (Next.js App Router + Local Storage) để giảm rủi ro trong refactor.
-- Giữ nguyên flow CRUD + lọc + tổng hợp số liệu, nhưng đổi ngữ nghĩa dữ liệu.
+Ứng dụng chạy bằng Next.js App Router, backend là các API route trong `app/api/*`, dữ liệu lưu trên PostgreSQL (Supabase) thông qua Prisma.
 
-## 3. Kiến trúc hệ thống
-### 3.1 Công nghệ sử dụng
-- **Frontend Framework**: Next.js 14 với App Router
-- **Styling**: Tailwind CSS
-- **Icons**: Lucide React
-- **Charts**: Recharts
-- **State Management**: React Hooks (useState, useEffect)
-- **Data Storage**: Local Storage (trình duyệt)
+## 2. Phạm vi nghiệp vụ hiện tại
 
-### 3.2 Cấu trúc thư mục hiện tại (phục vụ refactor)
-```
-telesales-system-project/
-├── app/
-│   ├── globals.css
-│   ├── layout.tsx
-│   └── page.tsx
-├── components/
-│   ├── AddTransactionForm.tsx      # sẽ refactor thành AddCallLogForm
-│   ├── EditTransactionModal.tsx    # sẽ refactor thành EditCallLogModal
-│   ├── ExpenseChart.tsx            # sẽ refactor thành RevenueChart
-│   ├── SummaryCards.tsx
-│   └── TransactionList.tsx         # sẽ refactor thành CallLogList
-├── context7-server/
-├── specs/
-└── public/
-```
+### 2.1 Nhóm người dùng
 
-## 4. Mô hình dữ liệu nghiệp vụ mới
-### 4.1 Thực thể CallLog
-- **id**: string (unique identifier)
-- **customerName**: string (tên khách hàng)
-- **phoneNumber**: string (số điện thoại liên hệ)
-- **callStatus**: "chot_don" | "tu_choi" | "moi" | "upsale"
-- **revenue**: number (doanh thu phát sinh từ cuộc gọi, >= 0)
-- **note**: string (ghi chú kết quả trao đổi)
-- **callDate**: string (ngày gọi, định dạng ISO hoặc yyyy-mm-dd)
-- **createdAt**: string (thời gian tạo bản ghi)
-- **updatedAt**: string (thời gian cập nhật bản ghi)
+- **Admin**
+  - Quản trị tổng quan.
+  - Quản lý khách hàng (lọc, phân công, xoá hàng loạt).
+  - Quản lý nhân viên (khoá/mở khoá, reset/set mật khẩu).
+  - Xem dashboard & báo cáo.
+- **Agent (Telesales)**
+  - Nhận danh sách khách được phân công.
+  - Ghi nhận call log và cập nhật trạng thái xử lý.
 
-### 4.2 Giá trị mặc định của CallStatus
-- `chot_don`: Chốt đơn
-- `tu_choi`: Từ chối
-- `moi`: Mới
-- `upsale`: Upsale
+### 2.2 Luồng nghiệp vụ chính
 
-## 5. Logic nghiệp vụ telesales
-### 5.1 CRUD CallLog
-- **Thêm nhật ký cuộc gọi**: nhập thông tin khách hàng, trạng thái, doanh thu và ghi chú.
-- **Sửa nhật ký cuộc gọi**: cập nhật trạng thái xử lý hoặc doanh thu sau follow-up.
-- **Xóa nhật ký cuộc gọi**: xác nhận trước khi xóa.
-- **Xem danh sách nhật ký cuộc gọi**: hiển thị theo thứ tự mới nhất.
+#### 2.2.1 Đăng nhập
 
-### 5.2 Quy tắc dữ liệu
-- `revenue` bắt buộc là số không âm.
-- Nếu `callStatus = "tu_choi"` thì `revenue` mặc định là 0 (cho phép chỉnh nếu nghiệp vụ đặc biệt).
-- Nếu `callStatus = "chot_don"` hoặc `"upsale"` thì ưu tiên yêu cầu nhập `revenue > 0`.
-- `phoneNumber` chỉ chứa số hoặc ký tự `+`, có kiểm tra độ dài tối thiểu.
+- Đăng nhập bằng username/password.
+- Hệ thống set cookie phiên:
+  - `telesales_session`
+  - `telesales_role`
+  - `telesales_user`
 
-### 5.3 Tính toán dashboard
-- **Tổng cuộc gọi**: tổng số CallLog.
-- **Tổng doanh thu**: tổng `revenue` của toàn bộ CallLog.
-- **Doanh thu theo trạng thái**: gom nhóm doanh thu theo `callStatus`.
-- **Tỷ lệ chuyển đổi**: số cuộc gọi `chot_don` / tổng cuộc gọi.
-- **Tỷ lệ upsale**: số cuộc gọi `upsale` / số cuộc gọi đã chốt.
+#### 2.2.2 Quản lý khách hàng (Admin)
 
-### 5.4 Lọc và tìm kiếm
-- Lọc theo tháng gọi (all/current/previous).
-- Lọc theo `callStatus`.
-- Tìm kiếm theo `customerName`, `phoneNumber`, `note`.
-- Kết hợp nhiều điều kiện lọc để phục vụ theo dõi hiệu suất telesales.
+- Xem danh sách khách hàng theo trang (pagination).
+- Lọc theo:
+  - nhân viên phụ trách
+  - trạng thái
+  - địa bàn
+  - từ khoá (mã KH, tên KH, SĐT)
+- Bulk actions:
+  - phân công cho nhân viên
+  - xoá hàng loạt
 
-## 6. Chức năng chính sau refactor
-### 6.1 Dashboard Telesales CRM
-- Hiển thị thẻ tóm tắt: Tổng cuộc gọi, Tổng doanh thu, Tỷ lệ chốt.
-- Biểu đồ tròn/cột cho phân bổ cuộc gọi và doanh thu theo trạng thái.
-- Danh sách cuộc gọi gần đây.
+#### 2.2.3 Ghi nhận cuộc gọi (Agent)
 
-### 6.2 Quản lý CallLog
-- **Thêm CallLog**: form nhập liệu có validation.
-- **Sửa CallLog**: modal edit với dữ liệu pre-filled.
-- **Xóa CallLog**: confirm dialog trước khi xóa.
-- **Lọc CallLog**: theo tháng, trạng thái, từ khóa.
+- Chọn kết quả cuộc gọi (call status).
+- Nhập ghi chú.
+- Nếu “Chốt đơn” / “Upsell” thì nhập doanh thu.
+- Nếu “Hẹn gọi lại” thì chọn ngày/giờ hẹn.
 
-### 6.3 Xuất dữ liệu
-- Export danh sách CallLog ra file CSV.
-- Định dạng CSV đề xuất: `CallDate,CustomerName,PhoneNumber,CallStatus,Revenue,Note`.
+#### 2.2.4 Dashboard/Báo cáo (Admin)
 
-## 7. Lưu trữ dữ liệu
-- Sử dụng localStorage của trình duyệt.
-- **Storage key mới**: `"telesales-crm-calllogs"`.
-- Format: JSON array of `CallLog`.
-- Tự động load/save khi có thay đổi.
-- Có bước migrate dữ liệu key cũ `"expense-tracker-transactions"` sang key mới (nếu tồn tại).
+- Tổng hợp số liệu theo ngày/khoảng ngày.
+- Xu hướng cuộc gọi và doanh thu.
+- Xuất CSV (trong phần reports) theo bộ lọc.
 
-## 8. MCP Integration (Model Context Protocol)
-### 8.1 Tools
-- `get_call_logs`: Lấy danh sách tất cả nhật ký cuộc gọi.
-- `add_call_log`: Thêm CallLog mới.
-- `update_call_log`: Cập nhật CallLog theo ID.
-- `delete_call_log`: Xóa CallLog theo ID.
-- `get_call_summary`: Lấy số liệu tổng hợp telesales.
+## 3. Mô hình dữ liệu (Prisma)
 
-### 8.2 Resources
-- `telesales-crm://call-logs`: Danh sách CallLog JSON
-- `telesales-crm://summary`: Tóm tắt số liệu telesales JSON
-- `telesales-crm://status-breakdown`: Phân bổ theo trạng thái JSON
-- `telesales-crm://export/csv`: Dữ liệu CSV
+### 3.1 Enum
 
-### 8.3 Context Information
-- Folder Map: mô tả cấu trúc thư mục và mục đích thành phần.
-- Business Logic: giải thích logic cốt lõi của Telesales CRM.
-- Refactor Mapping: ánh xạ tên cũ -> tên mới phục vụ migration code.
+- `Role`: `ADMIN`, `AGENT`
+- `CallStatus`: `CHOT_DON`, `TU_CHOI`, `MOI`, `UPSALE`, `HEN_GOI_LAI`
 
-## 9. Kế hoạch refactor đề xuất
-1. **Đổi tên domain model**: Transaction -> CallLog, category -> callStatus, amount -> revenue.
-2. **Refactor UI component**: đổi tên component và label hiển thị theo ngữ cảnh telesales.
-3. **Refactor logic tổng hợp**: thay công thức thu/chi bằng KPI telesales.
-4. **Refactor localStorage + migration**: áp dụng key mới và cơ chế migrate key cũ.
-5. **Refactor MCP server contracts**: đổi tên tools/resources và schema dữ liệu.
-6. **Regression test**: kiểm tra toàn bộ luồng CRUD, lọc, export, dashboard.
+### 3.2 Entities
 
-## 10. Yêu cầu phi chức năng
-- Responsive design (mobile-friendly) cho nhân viên telesales thao tác nhanh.
-- Performance: dashboard phản hồi nhanh với dữ liệu lớn.
-- Accessibility: hỗ trợ keyboard navigation và screen reader.
-- Data safety: không lưu thông tin nhạy cảm ngoài phạm vi cần thiết ở client.
+- **User**
+  - `username`, `password`, `role`
+  - `isLocked`, `lockedAt` (phục vụ admin lock/unlock)
+- **Customer**
+  - mã khách, tên, SĐT, địa bàn, địa chỉ
+  - `status` đang lưu dạng text (có thể là nhãn tiếng Việt hoặc enum code tuỳ dữ liệu)
+  - `assignedToId` liên kết sang `User`
+- **CallLog**
+  - liên kết `customerId` + `agentId`
+  - `callStatus` (enum)
+  - `timestamp`
+
+## 4. API chính
+
+- `POST /api/auth/login` / `POST /api/auth/logout` / `GET /api/auth/me`
+- `GET /api/agents`
+- `GET /api/customers` (màn hình telesales)
+
+Admin:
+
+- `GET /api/admin/customers`
+- `POST /api/admin/customers/assign`
+- `POST /api/admin/customers/delete`
+- `POST /api/admin/users/update`
+- `GET /api/admin/call-logs` (dashboard)
+
+## 5. Nền tảng triển khai
+
+- **Database**: Supabase PostgreSQL.
+- **Deploy**: Vercel.
+
+Ghi chú:
+
+- Khi chạy trên Vercel (serverless), khuyến nghị dùng Supabase **Transaction pooler** cho `DATABASE_URL`.
+
+## 6. Yêu cầu phi chức năng
+
+- Performance:
+  - Danh sách khách hàng có thể lớn, UI cần tránh render quá nhiều item (đã áp dụng virtualization cho một số list).
+- Stability:
+  - API không được trả HTML cho request `/api/*` (để frontend luôn parse JSON đúng).
+- Security:
+  - Không commit `.env` lên repo.
+  - Mật khẩu DB phải URL-encode khi cần.
