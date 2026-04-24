@@ -16,7 +16,13 @@ export default function CallInputForm({
   onSubmit,
   isDark = false,
 }: CallInputFormProps) {
-  const callStatuses = ['Chốt đơn', 'Từ chối', 'Mới', 'Upsale'];
+  const callStatuses: Array<Exclude<CallFormData["callStatus"], "">> = [
+    "Chốt đơn",
+    "Từ chối",
+    "Mới",
+    "Upsell",
+    "Hẹn gọi lại",
+  ];
 
   return (
     <div className="space-y-4">
@@ -45,7 +51,12 @@ export default function CallInputForm({
                 name="callStatus"
                 value={status}
                 checked={formData.callStatus === status}
-                onChange={(e) => setFormData({ ...formData, callStatus: e.target.value })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    callStatus: e.target.value as CallFormData["callStatus"],
+                  })
+                }
                 className="w-4 h-4"
               />
               <span className={`ml-2 text-sm font-medium ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
