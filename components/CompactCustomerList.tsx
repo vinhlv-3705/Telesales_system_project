@@ -99,7 +99,7 @@ export default function CompactCustomerList({
                         ? isDark
                           ? 'bg-rose-900/40 text-rose-200'
                           : 'bg-rose-100 text-rose-700'
-                        : customer.callStatus === 'Upsale'
+                        : customer.callStatus === 'Upsell'
                           ? isDark
                             ? 'bg-purple-900/40 text-purple-200'
                             : 'bg-purple-100 text-purple-700'
