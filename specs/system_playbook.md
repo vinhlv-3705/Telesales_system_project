@@ -152,6 +152,21 @@ Agent:
 Admin:
 
 - `GET /api/admin/customers`
+  - Query: `page`, `pageSize`, `q`, `assignedToId`, `status`, `area`
+  - Response: `{ items, total, page, pageSize }`
+
+- `POST /api/admin/customers`
+  - Auth: cookie `telesales_session`, role `admin`
+  - Body:
+    - `customerCode` (string, required)
+    - `customerName` (string, required)
+    - `phoneNumber` (string, required)
+    - `address` (string, optional)
+    - `area` (string, optional)
+    - `groupCode` (string, optional)
+    - `partner` (string, optional)
+  - Response: `{ item }` (shape giống row ở màn Quản lý Khách hàng)
+  - UI: tạo xong sẽ prepend record mới lên đầu danh sách (trang 1)
 - `POST /api/admin/customers/assign`
 - `POST /api/admin/customers/delete`
 - `GET /api/agents`

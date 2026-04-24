@@ -65,6 +65,18 @@ export default function AdminCustomersPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createSaving, setCreateSaving] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    customerCode: "",
+    customerName: "",
+    phoneNumber: "",
+    address: "",
+    area: "",
+    groupCode: "",
+    partner: "",
+  });
+
   useEffect(() => {
     const fetchAgents = async () => {
       try {
@@ -180,6 +192,81 @@ export default function AdminCustomersPage() {
     setSelectedIds(next);
   };
 
+  const resetCreateForm = () =>
+    setCreateForm({
+      customerCode: "",
+      customerName: "",
+      phoneNumber: "",
+      address: "",
+      area: "",
+      groupCode: "",
+      partner: "",
+    });
+
+  const submitCreateCustomer = async () => {
+    const customerCode = createForm.customerCode.trim();
+    const customerName = createForm.customerName.trim();
+    const phoneNumber = createForm.phoneNumber.trim();
+
+    if (!customerCode) {
+      setError("Vui lòng nhập mã khách hàng.");
+      return;
+    }
+    if (!customerName) {
+      setError("Vui lòng nhập tên khách hàng.");
+      return;
+    }
+    if (!phoneNumber) {
+      setError("Vui lòng nhập số điện thoại.");
+      return;
+    }
+
+    setCreateSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/customers", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          customerCode,
+          customerName,
+          phoneNumber,
+          address: createForm.address,
+          area: createForm.area,
+          groupCode: createForm.groupCode,
+          partner: createForm.partner,
+        }),
+      });
+
+      if (!res.ok) {
+        const payload = (await res.json().catch(() => null)) as { message?: string } | null;
+        throw new Error(payload?.message || "Không thể tạo khách hàng.");
+      }
+
+      const payload = (await res.json()) as { item: CustomerRow };
+      const created = payload.item;
+
+      setCreateOpen(false);
+      resetCreateForm();
+      setSelectedIds({});
+
+      if (page === 1) {
+        setData((prev) => {
+          const prevItems = prev?.items ?? [];
+          const nextItems = [created, ...prevItems].slice(0, pageSize);
+          const prevTotal = prev?.total ?? 0;
+          return { items: nextItems, total: prevTotal + 1, page: 1, pageSize };
+        });
+      } else {
+        setPage(1);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Có lỗi xảy ra");
+    } finally {
+      setCreateSaving(false);
+    }
+  };
+
   return (
     <div className="px-1 py-1 md:px-2 md:py-2">
       <motion.div
@@ -198,16 +285,32 @@ export default function AdminCustomersPage() {
             <p className={`mt-1 text-sm ${isDark ? "text-slate-300" : "text-slate-600"}`}>Master data + phân trang để thao tác mượt.</p>
           </div>
 
-          <button
-            type="button"
-            onClick={fetchCustomers}
-            className={`h-11 px-4 rounded-2xl border inline-flex items-center gap-2 text-sm font-bold transition ${
-              isDark ? "bg-white/10 border-white/10 hover:bg-white/15" : "bg-white/50 border-white/30 hover:bg-white/70"
-            }`}
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setCreateOpen(true);
+              }}
+              className={`h-11 px-4 rounded-2xl border inline-flex items-center gap-2 text-sm font-bold transition ${
+                isDark ? "bg-sky-500/15 border-sky-300/20 hover:bg-sky-500/20" : "bg-sky-500/10 border-sky-500/20 hover:bg-sky-500/15"
+              }`}
+            >
+              <UserPlus className="h-4 w-4" />
+              Thêm khách hàng
+            </button>
+
+            <button
+              type="button"
+              onClick={fetchCustomers}
+              className={`h-11 px-4 rounded-2xl border inline-flex items-center gap-2 text-sm font-bold transition ${
+                isDark ? "bg-white/10 border-white/10 hover:bg-white/15" : "bg-white/50 border-white/30 hover:bg-white/70"
+              }`}
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </button>
+          </div>
         </div>
 
         <div className="mt-5 grid grid-cols-1 lg:grid-cols-12 gap-3">
@@ -470,6 +573,156 @@ export default function AdminCustomersPage() {
             Gợi ý: Trang này đang là UI/pagination. Bước tiếp theo: thêm API re-assign/auto-allocate theo địa bàn.
           </div>
         </div>
+
+        {createOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-10 md:pt-14 overflow-y-auto"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div
+              className="absolute inset-0 bg-black/40"
+              onMouseDown={() => {
+                setCreateOpen(false);
+              }}
+            />
+            <div
+              className={`relative w-full max-w-[720px] rounded-3xl border shadow-2xl backdrop-blur-2xl p-5 md:p-6 ${
+                isDark ? "bg-slate-900/85 border-white/10 text-slate-100" : "bg-white/85 border-white/20 text-slate-900"
+              }`}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-xl font-black">Thêm khách hàng</div>
+                  <div className={`mt-1 text-sm ${isDark ? "text-slate-300" : "text-slate-600"}`}>Nhập thông tin và bấm Lưu để tạo mới.</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCreateOpen(false)}
+                  className={`h-10 w-10 rounded-2xl border inline-flex items-center justify-center transition ${
+                    isDark ? "bg-white/10 border-white/10 hover:bg-white/15" : "bg-white/50 border-white/30 hover:bg-white/70"
+                  }`}
+                  title="Đóng"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Mã KH *</label>
+                  <input
+                    value={createForm.customerCode}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, customerCode: e.target.value }))}
+                    className={`mt-1 h-11 w-full px-3 rounded-2xl border bg-white/20 backdrop-blur-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 ${
+                      isDark ? "border-white/10 text-white placeholder:text-slate-400" : "border-white/20 text-slate-900 placeholder:text-slate-500"
+                    }`}
+                    placeholder="VD: KH0001"
+                  />
+                </div>
+
+                <div>
+                  <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>SĐT *</label>
+                  <input
+                    value={createForm.phoneNumber}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, phoneNumber: e.target.value }))}
+                    className={`mt-1 h-11 w-full px-3 rounded-2xl border bg-white/20 backdrop-blur-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 ${
+                      isDark ? "border-white/10 text-white placeholder:text-slate-400" : "border-white/20 text-slate-900 placeholder:text-slate-500"
+                    }`}
+                    placeholder="VD: 090xxxxxxx"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Tên KH *</label>
+                  <input
+                    value={createForm.customerName}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, customerName: e.target.value }))}
+                    className={`mt-1 h-11 w-full px-3 rounded-2xl border bg-white/20 backdrop-blur-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 ${
+                      isDark ? "border-white/10 text-white placeholder:text-slate-400" : "border-white/20 text-slate-900 placeholder:text-slate-500"
+                    }`}
+                    placeholder="VD: Nguyễn Văn A"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Địa chỉ</label>
+                  <input
+                    value={createForm.address}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, address: e.target.value }))}
+                    className={`mt-1 h-11 w-full px-3 rounded-2xl border bg-white/20 backdrop-blur-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 ${
+                      isDark ? "border-white/10 text-white placeholder:text-slate-400" : "border-white/20 text-slate-900 placeholder:text-slate-500"
+                    }`}
+                    placeholder="VD: Hải Phòng"
+                  />
+                </div>
+
+                <div>
+                  <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Địa bàn</label>
+                  <input
+                    value={createForm.area}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, area: e.target.value }))}
+                    className={`mt-1 h-11 w-full px-3 rounded-2xl border bg-white/20 backdrop-blur-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 ${
+                      isDark ? "border-white/10 text-white placeholder:text-slate-400" : "border-white/20 text-slate-900 placeholder:text-slate-500"
+                    }`}
+                    placeholder="VD: Thủy Nguyên"
+                  />
+                </div>
+
+                <div>
+                  <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Mã nhóm</label>
+                  <input
+                    value={createForm.groupCode}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, groupCode: e.target.value }))}
+                    className={`mt-1 h-11 w-full px-3 rounded-2xl border bg-white/20 backdrop-blur-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 ${
+                      isDark ? "border-white/10 text-white placeholder:text-slate-400" : "border-white/20 text-slate-900 placeholder:text-slate-500"
+                    }`}
+                    placeholder="VD: N1"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Đối tác</label>
+                  <input
+                    value={createForm.partner}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, partner: e.target.value }))}
+                    className={`mt-1 h-11 w-full px-3 rounded-2xl border bg-white/20 backdrop-blur-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 ${
+                      isDark ? "border-white/10 text-white placeholder:text-slate-400" : "border-white/20 text-slate-900 placeholder:text-slate-500"
+                    }`}
+                    placeholder="VD: Partner A"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={createSaving}
+                  onClick={() => {
+                    setCreateOpen(false);
+                    resetCreateForm();
+                  }}
+                  className={`h-11 px-4 rounded-2xl border text-sm font-bold transition disabled:opacity-60 ${
+                    isDark ? "bg-white/10 border-white/10 hover:bg-white/15" : "bg-white/50 border-white/30 hover:bg-white/70"
+                  }`}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  disabled={createSaving}
+                  onClick={submitCreateCustomer}
+                  className={`h-11 px-4 rounded-2xl border text-sm font-bold transition disabled:opacity-60 ${
+                    isDark ? "bg-emerald-500/20 border-emerald-500/30 hover:bg-emerald-500/25" : "bg-emerald-500/15 border-emerald-500/25 hover:bg-emerald-500/20"
+                  }`}
+                >
+                  Lưu
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </motion.div>
     </div>
   );
