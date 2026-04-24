@@ -9,6 +9,7 @@ export function middleware(request: NextRequest) {
   const role = request.cookies.get("telesales_role")?.value;
   const isPublic = PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
   const isAdminOnlyRoute = ADMIN_ONLY_PREFIXES.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  const isApiRoute = pathname === "/api" || pathname.startsWith("/api/");
 
   if (pathname === "/login" && hasSession) {
     const redirectPath = role === "admin" ? "/admin/dashboard" : "/";
@@ -16,10 +17,16 @@ export function middleware(request: NextRequest) {
   }
 
   if (!isPublic && !hasSession) {
+    if (isApiRoute) {
+      return NextResponse.json({ message: "Chưa đăng nhập." }, { status: 401 });
+    }
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
   if (isAdminOnlyRoute && role !== "admin") {
+    if (isApiRoute) {
+      return NextResponse.json({ message: "Không có quyền." }, { status: 403 });
+    }
     return NextResponse.redirect(new URL("/", request.url));
   }
 
