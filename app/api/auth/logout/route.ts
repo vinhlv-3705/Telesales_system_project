@@ -20,5 +20,14 @@ export async function POST() {
     path: "/",
     maxAge: 0,
   });
+  response.cookies.set({
+    name: "telesales_user",
+    value: "",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 0,
+  });
   return response;
 }

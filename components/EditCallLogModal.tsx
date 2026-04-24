@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import CallLogForm, { CallFormData } from "./CallLogForm";
 import { CustomerCallLog } from "./CustomerList";
@@ -18,8 +18,27 @@ export default function EditCallLogModal({ callLog, onSave, onClose, isOpen, isD
     callStatus: callLog?.callStatus ?? "Mới",
     revenue: "0",
     callbackDate: callLog?.callbackDate ?? "",
+    callbackTime: callLog?.callbackTime ?? "",
+    assignedTo: "",
     note: callLog?.note ?? "",
   });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const fetchMe = async () => {
+      try {
+        const response = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!response.ok) return;
+        const data = (await response.json()) as { username?: string };
+        const username = data.username?.trim() || "User";
+        setLocalFormData((prev) => ({ ...prev, assignedTo: username }));
+      } catch {
+        // ignore
+      }
+    };
+
+    void fetchMe();
+  }, [isOpen]);
 
   if (!isOpen || !callLog) return null;
 
@@ -41,13 +60,15 @@ export default function EditCallLogModal({ callLog, onSave, onClose, isOpen, isD
           setFormData={setLocalFormData}
           isEditing
           isDark={isDark}
+          onValidationError={(message) => window.alert(message)}
           onSubmit={() =>
             onSave({
               ...callLog,
               customerName: localFormData.customerName.trim(),
               phoneNumber: localFormData.phoneNumber.trim(),
-              callStatus: localFormData.callStatus,
+              callStatus: ((localFormData.callStatus || "Mới") as CustomerCallLog["callStatus"]),
               callbackDate: localFormData.callbackDate,
+              callbackTime: localFormData.callbackTime,
               note: localFormData.note.trim(),
             })
           }

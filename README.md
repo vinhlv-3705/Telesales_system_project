@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Telesales CRM
 
-## Getting Started
+Ứng dụng Telesales CRM (Next.js + Prisma + SQLite) hỗ trợ:
 
-First, run the development server:
+- Quản lý danh sách khách hàng theo **Trình dược viên (User/Agent)**
+- Ghi nhật ký cuộc gọi (CallLogs)
+- Admin dashboard: thống kê, lọc, export CSV
+
+## Yêu cầu môi trường
+
+- Node.js: khuyến nghị **Node 22 LTS**
+- NPM
+
+## Cài đặt lần đầu
+
+```bash
+npm install
+```
+
+## Thiết lập Database (Prisma + SQLite)
+
+### 1) Generate Prisma Client
+
+```bash
+npx prisma generate
+```
+
+### 2) Migrate DB
+
+```bash
+npx prisma migrate dev
+```
+
+### 3) Seed dữ liệu (Data Ingestion)
+
+Seed sẽ:
+
+- Xoá sạch dữ liệu cũ (CallLog -> Customer -> User)
+- Tạo User Admin + 4 User Agent
+- Đọc file `danh_sach_khach_hang_full.csv` và nạp khách hàng
+- Chia đều khách hàng cho 4 Agent và set `assignedToId`
+
+```bash
+npx prisma db seed
+```
+
+## Chạy dev
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Mặc định:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- App: http://localhost:3000
+- Admin dashboard: http://localhost:3000/admin/dashboard
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Nếu port 3000 đang bận, Next.js sẽ tự chọn port khác và in ra trên terminal.
 
-## Learn More
+## Build & chạy production
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run build
+npm run start
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Tài khoản demo
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Admin
 
-## Deploy on Vercel
+- Username: `admin`
+- Password: `admin123`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Agents
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Username: `user1` / Password: `password123`
+- Username: `user2` / Password: `password123`
+- Username: `user3` / Password: `password123`
+- Username: `user4` / Password: `password123`

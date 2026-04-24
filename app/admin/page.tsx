@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { LogOut, ShieldCheck } from "lucide-react";
+import { BarChart3, LayoutDashboard, LogOut, ShieldCheck } from "lucide-react";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -35,6 +35,26 @@ export default function AdminPage() {
             >
               <LogOut className="h-4 w-4 mr-2" />
               Đăng xuất
+            </button>
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => router.push("/admin/dashboard")}
+              className="w-full px-5 py-4 rounded-2xl border border-white/60 backdrop-blur-xl bg-white/55 text-slate-800 flex items-center gap-3 font-bold hover:bg-white/70 transition"
+            >
+              <BarChart3 className="h-5 w-5 text-blue-700" />
+              Thống kê & báo cáo
+            </button>
+
+            <button
+              type="button"
+              onClick={() => router.push("/")}
+              className="w-full px-5 py-4 rounded-2xl border border-white/60 backdrop-blur-xl bg-white/45 text-slate-700 flex items-center gap-3 font-bold hover:bg-white/60 transition"
+            >
+              <LayoutDashboard className="h-5 w-5 text-slate-700" />
+              Màn hình telesales
             </button>
           </div>
         </motion.div>

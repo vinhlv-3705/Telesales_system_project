@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
 type UserRole = "admin" | "user";
 
 export async function POST(request: Request) {
-  const { username, password } = await request.json();
+  const body = (await request.json()) as { username?: unknown; password?: unknown };
+  const username = typeof body.username === "string" ? body.username.trim() : "";
+  const password = typeof body.password === "string" ? body.password.trim() : "";
 
   const credentials: Record<UserRole, { username: string; password: string }> = {
     admin: {
@@ -17,10 +20,43 @@ export async function POST(request: Request) {
   };
 
   let role: UserRole | null = null;
-  if (username === credentials.admin.username && password === credentials.admin.password) {
-    role = "admin";
-  } else if (username === credentials.user.username && password === credentials.user.password) {
-    role = "user";
+
+  try {
+    type DbUser = { role: string; password: string; isLocked?: boolean | null };
+    type DbClient = { user: { findUnique: (args: unknown) => Promise<DbUser | null> } };
+    const db = prisma as unknown as DbClient;
+
+    let dbUser: DbUser | null = null;
+    try {
+      dbUser = await db.user.findUnique({
+        where: { username },
+        select: { role: true, password: true, isLocked: true },
+      });
+    } catch {
+      // Fallback khi DB chưa migrate cột isLocked.
+      dbUser = await db.user.findUnique({
+        where: { username },
+        select: { role: true, password: true },
+      });
+    }
+
+    if (dbUser?.isLocked) {
+      return NextResponse.json({ message: "Tài khoản đang bị khóa." }, { status: 403 });
+    }
+
+    if (dbUser && typeof dbUser.password === "string" && dbUser.password === password) {
+      role = dbUser.role === "ADMIN" ? "admin" : "user";
+    }
+  } catch {
+    // ignore DB errors and fall back to env credentials
+  }
+
+  if (!role) {
+    if (username === credentials.admin.username && password === credentials.admin.password) {
+      role = "admin";
+    } else if (username === credentials.user.username && password === credentials.user.password) {
+      role = "user";
+    }
   }
 
   if (!role) {
@@ -40,6 +76,15 @@ export async function POST(request: Request) {
   response.cookies.set({
     name: "telesales_role",
     value: role,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 8,
+  });
+  response.cookies.set({
+    name: "telesales_user",
+    value: username,
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

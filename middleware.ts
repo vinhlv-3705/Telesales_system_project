@@ -11,7 +11,7 @@ export function middleware(request: NextRequest) {
   const isAdminOnlyRoute = ADMIN_ONLY_PREFIXES.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 
   if (pathname === "/login" && hasSession) {
-    const redirectPath = role === "admin" ? "/admin" : "/";
+    const redirectPath = role === "admin" ? "/admin/dashboard" : "/";
     return NextResponse.redirect(new URL(redirectPath, request.url));
   }
 

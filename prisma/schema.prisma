@@ -1,6 +1,5 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../app/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -12,32 +11,83 @@ enum CallStatus {
   TU_CHOI
   MOI
   UPSALE
+  HEN_GOI_LAI
+}
+
+enum Role {
+  ADMIN
+  AGENT
+}
+
+model User {
+  id        String    @id @default(cuid())
+  username  String    @unique
+  password  String    @default("password123")
+  role      Role      @default(AGENT)
+  isLocked  Boolean   @default(false)
+  lockedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  customers Customer[]
+  callLogs  CallLog[]
+
+  @@index([role])
+  @@map("user")
 }
 
 model Customer {
-  id         String    @id @default(cuid())
-  name       String
-  phone      String    @unique
-  email      String?
-  notes      String?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  callLogs   CallLog[]
+  id           String    @id @default(cuid())
+  customerCode String    @unique
+  fullName     String
+  name         String?
+  phone        String
+  area         String?
+  address      String?
+  taxCode      String?
+  groupCode    String?
+  partner      String?
+  status       String    @default("Mới")
+  callbackTime String?
+  totalRevenue Float     @default(0)
+  assignedTo   String
+  assignedToId String?
+  assignedToUser User?   @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  medicalRep   String    @default("Admin")
+  email        String?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  callLogs     CallLog[]
+
+  @@index([fullName])
+  @@index([phone])
+  @@index([status])
+  @@index([assignedToId])
+  @@map("cust")
 }
 
 model CallLog {
   id           String     @id @default(cuid())
   customerId   String
   customer     Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  agentId      String?
+  agent        User?      @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  agentName    String
+  customerName String
   callStatus   CallStatus @default(MOI)
   revenue      Float      @default(0)
   callbackDate DateTime?
+  callbackTime String?
   note         String?
+  notes        String?
+  timestamp    DateTime   @default(now())
   callAt       DateTime   @default(now())
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
   @@index([customerId])
+  @@index([agentId])
   @@index([callStatus])
   @@index([callbackDate])
 }
