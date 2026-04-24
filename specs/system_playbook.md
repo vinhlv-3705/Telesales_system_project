@@ -168,7 +168,91 @@ Admin:
   - update tài liệu này
   - update `specs/requirements.md` nếu ảnh hưởng nghiệp vụ
 
-## 9. TODO / Known Risks
+## 10. Quy trình Deploy (Git + Vercel + Supabase)
+
+### 10.1 Nguyên tắc
+
+- Vercel sẽ **tự động deploy** khi bạn push code lên GitHub.
+- Thông thường:
+  - Push lên **branch Production** (thường là `main`) => **Production Deployment**.
+  - Push lên branch khác => **Preview Deployment** (mỗi branch có 1 preview URL).
+
+Để kiểm tra cấu hình branch production:
+
+- Vercel Project → `Settings → Git` → `Production Branch`.
+
+### 10.2 Workflow khuyến nghị (feature branch → PR → main)
+
+1) Tạo branch từ `main`:
+
+- `feature/<ten-tinh-nang>`
+
+2) Code + commit + push branch:
+
+- Vercel sẽ tạo **Preview Deployment**.
+
+3) Test trên preview URL:
+
+- Login admin/agent
+- Check API chính (`/api/agents`, `/api/admin/customers`, dashboard)
+
+4) Tạo Pull Request về `main`.
+
+5) Merge PR vào `main`:
+
+- Vercel sẽ tạo **Production Deployment**.
+
+### 10.3 Environment Variables trên Vercel
+
+- Vercel Project → `Settings → Environment Variables`
+
+Biến bắt buộc:
+
+- `DATABASE_URL`
+
+Khuyến nghị cho Vercel runtime (serverless):
+
+- Supabase **Transaction pooler**:
+  - Host `...pooler.supabase.com`
+  - Port `6543`
+  - Có query params: `pgbouncer=true&sslmode=require`
+
+Workaround TLS (nếu gặp P1011):
+
+- `PG_SSL_REJECT_UNAUTHORIZED=false`
+
+Lưu ý:
+
+- Nếu muốn preview cũng chạy đầy đủ, set env cho cả `Preview` và `Production`.
+
+### 10.4 Prisma migration khi deploy
+
+- Khi thay đổi `prisma/schema.prisma`:
+  - Local: chạy `prisma migrate dev` để tạo migration.
+  - Commit `prisma/migrations/*` lên Git.
+
+DB production (Supabase):
+
+- Apply migrations bằng `prisma migrate deploy` trỏ vào DB production.
+
+Ghi chú:
+
+- Không chạy seed tự động trong Vercel.
+- Seed (`prisma db seed`) dùng cho local hoặc thao tác chủ động khi cần (cẩn thận xoá dữ liệu).
+
+### 10.5 Checklist sau deploy
+
+- Mở production URL.
+- Login admin.
+- Test nhanh:
+  - `/api/auth/me`
+  - `/api/agents`
+  - `/api/admin/customers?page=1&pageSize=5`
+- Nếu UI báo lỗi, kiểm tra:
+  - Vercel Project → `Logs`
+  - Lọc theo endpoint `/api/...` để lấy stacktrace.
+
+## 11. TODO / Known Risks
 
 - TLS workaround trên Vercel (`PG_SSL_REJECT_UNAUTHORIZED=false`) cần đánh giá lại.
 - Next.js warning về deprecate `middleware` convention: cần theo dõi hướng dẫn Next.js để đổi sang cơ chế mới khi bắt buộc.
