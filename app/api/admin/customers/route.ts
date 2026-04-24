@@ -156,3 +156,101 @@ export async function GET(request: Request) {
     return NextResponse.json({ message: "Không tải được dữ liệu khách hàng." }, { status: 500 });
   }
 }
+
+export async function POST(request: Request) {
+  try {
+    const cookieStore = await cookies();
+    const session = cookieStore.get("telesales_session")?.value;
+    const role = cookieStore.get("telesales_role")?.value;
+
+    if (!session) {
+      return NextResponse.json({ message: "Chưa đăng nhập." }, { status: 401 });
+    }
+    if (role !== "admin" && role !== "ADMIN") {
+      return NextResponse.json({ message: "Không có quyền." }, { status: 403 });
+    }
+
+    const body = (await request.json().catch(() => null)) as
+      | {
+          customerCode?: string;
+          customerName?: string;
+          phoneNumber?: string;
+          address?: string;
+          area?: string;
+          groupCode?: string;
+          partner?: string;
+        }
+      | null;
+
+    const customerCode = (body?.customerCode || "").trim();
+    const customerName = (body?.customerName || "").trim();
+    const phoneNumber = (body?.phoneNumber || "").trim();
+    const address = (body?.address || "").trim();
+    const area = (body?.area || "").trim();
+    const groupCode = (body?.groupCode || "").trim();
+    const partner = (body?.partner || "").trim();
+
+    if (!customerCode) {
+      return NextResponse.json({ message: "Thiếu mã khách hàng." }, { status: 400 });
+    }
+    if (!customerName) {
+      return NextResponse.json({ message: "Thiếu tên khách hàng." }, { status: 400 });
+    }
+    if (!phoneNumber) {
+      return NextResponse.json({ message: "Thiếu số điện thoại." }, { status: 400 });
+    }
+
+    try {
+      const created = await prisma.customer.create({
+        data: {
+          customerCode,
+          fullName: customerName,
+          phone: phoneNumber,
+          address: address || null,
+          area: area || null,
+          groupCode: groupCode || null,
+          partner: partner || null,
+          status: "Mới",
+          assignedTo: "Admin",
+          assignedToId: null,
+        },
+        select: {
+          id: true,
+          customerCode: true,
+          fullName: true,
+          phone: true,
+          address: true,
+          area: true,
+          groupCode: true,
+          partner: true,
+          status: true,
+        },
+      });
+
+      return NextResponse.json({
+        item: {
+          id: created.id,
+          customerCode: created.customerCode,
+          customerName: created.fullName,
+          phoneNumber: created.phone,
+          address: created.address ?? "",
+          area: created.area ?? "",
+          groupCode: created.groupCode ?? "",
+          partner: created.partner ?? "",
+          callStatus: normalizeStatusLabel(created.status),
+          lastInteractionAt: "",
+          assignedToName: "",
+        },
+      });
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      if (detail.toLowerCase().includes("unique") || detail.toLowerCase().includes("duplicate")) {
+        return NextResponse.json({ message: "Mã khách hàng đã tồn tại." }, { status: 409 });
+      }
+      throw error;
+    }
+  } catch (error) {
+    console.error("POST /api/admin/customers error:", error);
+    return NextResponse.json({ message: "Không thể tạo khách hàng." }, { status: 500 });
+  }
+}
