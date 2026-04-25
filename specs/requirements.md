@@ -47,9 +47,16 @@ Hệ thống là một Telesales CRM tối giản nhằm:
 #### 2.2.3 Ghi nhận cuộc gọi (Agent)
 
 - Chọn kết quả cuộc gọi (call status).
-- Nhập ghi chú.
-- Nếu “Chốt đơn” / “Upsell” thì nhập doanh thu.
-- Nếu “Hẹn gọi lại” thì chọn ngày/giờ hẹn.
+- Rule validate theo kết quả:
+  - `Chốt đơn` / `Upsell`:
+    - Bắt buộc `Doanh thu > 0`
+    - Bắt buộc `Ghi chú`
+  - `Từ chối`:
+    - Bắt buộc `Ghi chú`
+  - `Hẹn gọi lại`:
+    - Bắt buộc `Ngày hẹn lại`
+    - Không nhập giờ hẹn
+- Doanh thu mặc định để trống (hiện placeholder), không auto điền `0`.
 
 #### 2.2.4 Dashboard/Báo cáo (Admin)
 
@@ -73,6 +80,12 @@ Hệ thống là một Telesales CRM tối giản nhằm:
   - mã khách, tên, SĐT, địa bàn, địa chỉ
   - `status` đang lưu dạng text (có thể là nhãn tiếng Việt hoặc enum code tuỳ dữ liệu)
   - `assignedToId` liên kết sang `User`
+  - Chăm sóc/đơn hàng:
+    - `birthday` (DateTime?): sinh nhật khách
+    - `lastOrderAt` (DateTime?): ngày chốt đơn gần nhất
+    - `productsPurchased` (string?): danh sách mặt hàng đã lấy (chuỗi, ngăn cách bằng dấu phẩy)
+  - Kết nối:
+    - `zaloConnected` (boolean): trạng thái kết nối Zalo (mặc định `false`)
 - **CallLog**
   - liên kết `customerId` + `agentId`
   - `callStatus` (enum)
@@ -83,6 +96,10 @@ Hệ thống là một Telesales CRM tối giản nhằm:
 - `POST /api/auth/login` / `POST /api/auth/logout` / `GET /api/auth/me`
 - `GET /api/agents`
 - `GET /api/customers` (màn hình telesales)
+  - Response: mỗi customer trả thêm các field phục vụ panel chi tiết:
+    - `birthday`, `lastOrderAt`, `productsPurchased`
+    - `zaloConnected`
+    - `lastInteractionAt` (ISO timestamp của call log gần nhất, nếu có)
 
 Admin:
 
@@ -110,3 +127,27 @@ Ghi chú:
 - Security:
   - Không commit `.env` lên repo.
   - Mật khẩu DB phải URL-encode khi cần.
+
+## 7. Quy tắc hiển thị trên màn Telesales (UI)
+
+- Panel thông tin khách (Currently Calling):
+  - Luôn hiển thị:
+    - `Status` (trạng thái hiện tại của khách)
+    - `Kết nối Zalo` (Đã kết nối/Chưa kết nối)
+    - `Sinh nhật`
+  - Quick actions:
+    - Copy `SĐT`
+  - Chỉ hiển thị khi status là **Chốt đơn** hoặc **Upsell**:
+    - `Chốt đơn gần nhất`
+    - `Mặt hàng đã lấy`
+    - `Lịch gọi tiếp theo`
+      - Mặc định +1 tháng tính từ `lastOrderAt` (ngày chốt đơn gần nhất)
+  - `Ghi chú`:
+    - Hiển thị ở cuối panel
+
+- Customer Queue:
+  - Có 3 tab: `Cần xử lý` / `Hẹn gọi lại` / `Đã xử lý`.
+  - Khi ở tab `Đã xử lý`, có filter thời gian: `Tất cả` / `Hôm nay` / `Tuần này`.
+
+- Nền (Theme/background):
+  - Chỉ hỗ trợ toggle `Dark/Light` (không có popup tùy chỉnh nền).

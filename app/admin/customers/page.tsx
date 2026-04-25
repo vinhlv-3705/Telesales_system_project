@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Filter, RefreshCw, Search, Trash2, UserPlus, Users, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Filter, RefreshCw, Search, Trash2, UserPlus, Users, X } from "lucide-react";
 import { motion } from "framer-motion";
 
 type CustomerRow = {
@@ -71,6 +71,7 @@ export default function AdminCustomersPage() {
     customerCode: "",
     customerName: "",
     phoneNumber: "",
+    birthday: "",
     address: "",
     area: "",
     groupCode: "",
@@ -130,6 +131,29 @@ export default function AdminCustomersPage() {
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const paginationItems = useMemo<(number | "ellipsis")[]>(() => {
+    if (totalPages <= 1) return [1];
+    if (totalPages <= 9) return Array.from({ length: totalPages }, (_, i) => i + 1);
+
+    const items: (number | "ellipsis")[] = [];
+    const push = (v: number | "ellipsis") => {
+      if (items[items.length - 1] === v) return;
+      items.push(v);
+    };
+
+    push(1);
+
+    const windowStart = Math.max(2, page - 2);
+    const windowEnd = Math.min(totalPages - 1, page + 2);
+
+    if (windowStart > 2) push("ellipsis");
+    for (let p = windowStart; p <= windowEnd; p += 1) push(p);
+    if (windowEnd < totalPages - 1) push("ellipsis");
+
+    push(totalPages);
+    return items;
+  }, [page, totalPages]);
 
   const selectedList = useMemo(() => Object.keys(selectedIds).filter((id) => selectedIds[id]), [selectedIds]);
 
@@ -197,6 +221,7 @@ export default function AdminCustomersPage() {
       customerCode: "",
       customerName: "",
       phoneNumber: "",
+      birthday: "",
       address: "",
       area: "",
       groupCode: "",
@@ -231,6 +256,7 @@ export default function AdminCustomersPage() {
           customerCode,
           customerName,
           phoneNumber,
+          birthday: createForm.birthday,
           address: createForm.address,
           area: createForm.area,
           groupCode: createForm.groupCode,
@@ -486,10 +512,10 @@ export default function AdminCustomersPage() {
               )}
             </div>
           </div>
-          <div className="p-4 overflow-x-auto">
-            <table className="min-w-[1100px] w-full text-sm">
+          <div className="p-4 overflow-auto ui-scrollbar max-h-[calc(100vh-420px)]">
+            <table className="min-w-275 w-full text-sm">
               <thead>
-                <tr className="text-left opacity-70">
+                <tr className={`text-left opacity-70 sticky top-0 z-10 ${isDark ? "bg-slate-900/40" : "bg-white/55"} backdrop-blur-2xl`}>
                   <th className="py-2">
                     <input
                       type="checkbox"
@@ -547,26 +573,62 @@ export default function AdminCustomersPage() {
         </div>
 
         <div className="mt-5 flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className={`h-11 px-4 rounded-2xl border text-sm font-bold transition disabled:opacity-60 ${
+              className={`h-11 px-3 rounded-2xl border text-sm font-bold transition disabled:opacity-60 inline-flex items-center gap-2 ${
                 isDark ? "bg-white/10 border-white/10 hover:bg-white/15" : "bg-white/50 border-white/30 hover:bg-white/70"
               }`}
+              title="Trang trước"
             >
-              Prev
+              <ChevronLeft className="h-4 w-4" />
             </button>
+
+            {paginationItems.map((it, idx) => {
+              if (it === "ellipsis") {
+                return (
+                  <div
+                    key={`ellipsis-${idx}`}
+                    className={`h-11 px-2 inline-flex items-center text-sm font-bold ${isDark ? "text-slate-300" : "text-slate-600"}`}
+                  >
+                    ...
+                  </div>
+                );
+              }
+
+              const active = it === page;
+              return (
+                <button
+                  key={it}
+                  type="button"
+                  onClick={() => setPage(it)}
+                  className={`h-11 min-w-11 px-3 rounded-2xl border text-sm font-black transition ${
+                    active
+                      ? isDark
+                        ? "bg-sky-500/25 border-sky-400/40 text-sky-100"
+                        : "bg-sky-500/20 border-sky-500/30 text-slate-900"
+                      : isDark
+                        ? "bg-white/10 border-white/10 hover:bg-white/15 text-slate-100"
+                        : "bg-white/50 border-white/30 hover:bg-white/70 text-slate-800"
+                  }`}
+                >
+                  {it}
+                </button>
+              );
+            })}
+
             <button
               type="button"
               disabled={page >= totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className={`h-11 px-4 rounded-2xl border text-sm font-bold transition disabled:opacity-60 ${
+              className={`h-11 px-3 rounded-2xl border text-sm font-bold transition disabled:opacity-60 inline-flex items-center gap-2 ${
                 isDark ? "bg-white/10 border-white/10 hover:bg-white/15" : "bg-white/50 border-white/30 hover:bg-white/70"
               }`}
+              title="Trang sau"
             >
-              Next
+              <ChevronRight className="h-4 w-4" />
             </button>
           </div>
           <div className={`text-xs ${isDark ? "text-slate-300" : "text-slate-600"}`}>
@@ -587,7 +649,7 @@ export default function AdminCustomersPage() {
               }}
             />
             <div
-              className={`relative w-full max-w-[720px] rounded-3xl border shadow-2xl backdrop-blur-2xl p-5 md:p-6 ${
+              className={`relative w-full max-w-180 rounded-3xl border shadow-2xl backdrop-blur-2xl p-5 md:p-6 ${
                 isDark ? "bg-slate-900/85 border-white/10 text-slate-100" : "bg-white/85 border-white/20 text-slate-900"
               }`}
               onMouseDown={(e) => e.stopPropagation()}
@@ -643,6 +705,18 @@ export default function AdminCustomersPage() {
                       isDark ? "border-white/10 text-white placeholder:text-slate-400" : "border-white/20 text-slate-900 placeholder:text-slate-500"
                     }`}
                     placeholder="VD: Nguyễn Văn A"
+                  />
+                </div>
+
+                <div>
+                  <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Sinh nhật</label>
+                  <input
+                    type="date"
+                    value={createForm.birthday}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, birthday: e.target.value }))}
+                    className={`mt-1 h-11 w-full px-3 rounded-2xl border bg-white/20 backdrop-blur-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 ${
+                      isDark ? "border-white/10 text-white placeholder:text-slate-400" : "border-white/20 text-slate-900 placeholder:text-slate-500"
+                    }`}
                   />
                 </div>
 

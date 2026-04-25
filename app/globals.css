@@ -3,8 +3,8 @@
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
-  --surface: rgba(255, 255, 255, 0.4);
-  --surface-border: rgba(255, 255, 255, 0.65);
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-border: rgba(148, 163, 184, 0.35);
   --blob-1: rgba(56, 189, 248, 0.28);
   --blob-2: rgba(59, 130, 246, 0.22);
   --blob-3: rgba(14, 165, 233, 0.2);
@@ -15,8 +15,8 @@
 :root[data-theme="dark"] {
   --background: #020617;
   --foreground: #e2e8f0;
-  --surface: rgba(15, 23, 42, 0.45);
-  --surface-border: rgba(148, 163, 184, 0.22);
+  --surface: rgba(15, 23, 42, 0.86);
+  --surface-border: rgba(148, 163, 184, 0.18);
   --blob-1: rgba(30, 64, 175, 0.3);
   --blob-2: rgba(14, 116, 144, 0.28);
   --blob-3: rgba(59, 130, 246, 0.2);
@@ -43,6 +43,85 @@
 
   .animation-delay-6000 {
     animation-delay: 6s;
+  }
+
+  .ui-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.6) transparent;
+  }
+
+  .ui-scrollbar::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  .ui-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.55);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+
+  :root[data-theme="dark"] .ui-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.28);
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+}
+
+@layer components {
+  .ui-card {
+    @apply rounded-3xl border shadow-xl;
+    background: var(--surface);
+    border-color: var(--surface-border);
+  }
+
+  .ui-card-soft {
+    @apply rounded-3xl border shadow-lg;
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    border-color: color-mix(in srgb, var(--surface-border) 92%, transparent);
+  }
+
+  .ui-btn {
+    @apply h-11 px-4 rounded-2xl border inline-flex items-center justify-center gap-2 text-sm font-bold transition focus:outline-none focus:ring-2;
+    background: color-mix(in srgb, var(--surface) 98%, transparent);
+    border-color: color-mix(in srgb, var(--surface-border) 95%, transparent);
+    color: var(--foreground);
+    box-shadow: 0 12px 22px rgba(2, 6, 23, 0.08);
+    --tw-ring-color: var(--ring);
+  }
+
+  .ui-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .ui-btn:active {
+    transform: translateY(0px);
+  }
+
+  .ui-btn-primary {
+    @apply border-transparent text-white;
+    background: linear-gradient(90deg, #2563eb, #4f46e5);
+    box-shadow: 0 18px 40px rgba(37, 99, 235, 0.26);
+  }
+
+  .ui-input {
+    @apply h-11 w-full px-3 rounded-2xl border text-sm focus:outline-none focus:ring-2;
+    background: color-mix(in srgb, var(--surface) 98%, transparent);
+    border-color: color-mix(in srgb, var(--surface-border) 95%, transparent);
+    color: var(--foreground);
+    --tw-ring-color: var(--ring);
+  }
+
+  .ui-input::placeholder {
+    color: color-mix(in srgb, var(--foreground) 45%, transparent);
+  }
+
+  .ui-chip {
+    @apply inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-bold;
+    background: color-mix(in srgb, var(--surface) 85%, transparent);
+    border-color: color-mix(in srgb, var(--surface-border) 75%, transparent);
+    color: var(--foreground);
   }
 }
 

@@ -175,20 +175,31 @@ export async function POST(request: Request) {
           customerCode?: string;
           customerName?: string;
           phoneNumber?: string;
+          birthday?: string;
           address?: string;
           area?: string;
           groupCode?: string;
           partner?: string;
+          zaloConnected?: boolean;
         }
       | null;
 
     const customerCode = (body?.customerCode || "").trim();
     const customerName = (body?.customerName || "").trim();
     const phoneNumber = (body?.phoneNumber || "").trim();
+    const birthdayRaw = (body?.birthday || "").trim();
     const address = (body?.address || "").trim();
     const area = (body?.area || "").trim();
     const groupCode = (body?.groupCode || "").trim();
     const partner = (body?.partner || "").trim();
+    const zaloConnected = Boolean(body?.zaloConnected);
+
+    const birthday = (() => {
+      if (!birthdayRaw) return null;
+      const d = new Date(birthdayRaw);
+      if (Number.isNaN(d.getTime())) return null;
+      return d;
+    })();
 
     if (!customerCode) {
       return NextResponse.json({ message: "Thiếu mã khách hàng." }, { status: 400 });
@@ -201,16 +212,18 @@ export async function POST(request: Request) {
     }
 
     try {
-      const created = await prisma.customer.create({
+      const created = await (prisma as unknown as { customer: { create: (args: unknown) => Promise<unknown> } }).customer.create({
         data: {
           customerCode,
           fullName: customerName,
+          birthday,
           phone: phoneNumber,
           address: address || null,
           area: area || null,
           groupCode: groupCode || null,
           partner: partner || null,
-          status: "Mới",
+          zaloConnected,
+          status: "MOI",
           assignedTo: "Admin",
           assignedToId: null,
         },
@@ -224,20 +237,35 @@ export async function POST(request: Request) {
           groupCode: true,
           partner: true,
           status: true,
+          zaloConnected: true,
         },
       });
 
+      const createdRow = created as {
+        id: string;
+        customerCode: string;
+        fullName: string;
+        phone: string;
+        address: string | null;
+        area: string | null;
+        groupCode: string | null;
+        partner: string | null;
+        status: string;
+        zaloConnected?: boolean | null;
+      };
+
       return NextResponse.json({
         item: {
-          id: created.id,
-          customerCode: created.customerCode,
-          customerName: created.fullName,
-          phoneNumber: created.phone,
-          address: created.address ?? "",
-          area: created.area ?? "",
-          groupCode: created.groupCode ?? "",
-          partner: created.partner ?? "",
-          callStatus: normalizeStatusLabel(created.status),
+          id: createdRow.id,
+          customerCode: createdRow.customerCode,
+          customerName: createdRow.fullName,
+          phoneNumber: createdRow.phone,
+          address: createdRow.address ?? "",
+          area: createdRow.area ?? "",
+          groupCode: createdRow.groupCode ?? "",
+          partner: createdRow.partner ?? "",
+          callStatus: normalizeStatusLabel(createdRow.status),
+          zaloConnected: Boolean(createdRow.zaloConnected),
           lastInteractionAt: "",
           assignedToName: "",
         },

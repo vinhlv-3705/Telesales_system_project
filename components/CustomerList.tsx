@@ -15,6 +15,12 @@ export interface CustomerCallLog {
   callbackDate: string;
   callbackTime?: string;
   note: string;
+  birthday?: string;
+  lastOrderAt?: string;
+  productsPurchased?: string;
+  timestamp?: string;
+  zaloConnected?: boolean;
+  lastInteractionAt?: string;
 }
 
 interface CustomerListProps {
@@ -31,7 +37,7 @@ export default function CustomerList({ customers, onCall, activeCustomerId, isDa
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
 
-  const ITEM_HEIGHT = 220;
+  const ITEM_HEIGHT = 180;
   const OVERSCAN = 6;
 
   useEffect(() => {
@@ -71,18 +77,14 @@ export default function CustomerList({ customers, onCall, activeCustomerId, isDa
 
   return (
     <div
-      className={`backdrop-blur-2xl p-5 rounded-3xl border h-full shadow-2xl ${
-        isDark
-          ? "bg-slate-900/60 border-white/10"
-          : "bg-white/60 border-white/20"
-      }`}
+      className={`ui-card p-5 h-full ${isDark ? "text-slate-100" : "text-slate-900"}`}
     >
       <div className="mb-3">
         <h2 className={`text-lg font-bold ${isDark ? "text-slate-100" : "text-[#1e293b]"}`}>Customer Queue</h2>
       </div>
       <div
         ref={scrollRef}
-        className="h-[calc(100%-36px)] overflow-y-auto pr-1"
+        className="h-[calc(100%-36px)] overflow-y-auto ui-scrollbar pr-1"
         onScroll={(event) => {
           setScrollTop((event.currentTarget as HTMLDivElement).scrollTop);
         }}
@@ -112,7 +114,7 @@ export default function CustomerList({ customers, onCall, activeCustomerId, isDa
                 role="button"
                 tabIndex={0}
                 style={{ position: "absolute", top: index * ITEM_HEIGHT, left: 0, right: 0 }}
-                className={`w-full text-left rounded-2xl border p-4 transition-all cursor-pointer select-text ${
+                className={`w-full text-left rounded-2xl border p-3 transition-all cursor-pointer select-text ${
                   customer.id === activeCustomerId
                     ? isDark
                       ? "bg-sky-500/15 border-sky-300/40 shadow-[0_14px_35px_rgba(56,189,248,0.20)]"
@@ -150,7 +152,7 @@ export default function CustomerList({ customers, onCall, activeCustomerId, isDa
                   <div className={`font-semibold ${isDark ? "text-slate-100" : "text-slate-900"}`}>{customer.customerName}</div>
                   {showCallbackSchedule && customer.callbackTime && (
                     <div
-                      className={`text-xs mt-1 inline-flex items-center gap-1 ${
+                      className={`text-xs mt-0.5 inline-flex items-center gap-1 ${
                         isOverdue
                           ? "text-rose-500"
                           : isDark
@@ -164,12 +166,9 @@ export default function CustomerList({ customers, onCall, activeCustomerId, isDa
                     </div>
                   )}
                 </div>
-                <div className={`text-xs mt-2 space-y-1 ${isDark ? "text-slate-300" : "text-slate-700"}`}>
+                <div className={`text-xs mt-1.5 space-y-0.5 ${isDark ? "text-slate-300" : "text-slate-700"}`}>
                   <div><span className="font-semibold">SĐT:</span> {customer.phoneNumber || "--"}</div>
                   <div><span className="font-semibold">Địa chỉ:</span> {customer.address || "--"}</div>
-                  <div><span className="font-semibold">Địa bàn:</span> {customer.area || "--"}</div>
-                  <div><span className="font-semibold">Mã nhóm:</span> {customer.groupCode || "--"}</div>
-                  <div><span className="font-semibold">Đối tác:</span> {customer.partner || "--"}</div>
                 </div>
               </motion.div>
             );

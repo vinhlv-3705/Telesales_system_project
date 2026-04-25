@@ -1,14 +1,39 @@
 ﻿'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Sun, Moon, LogOut, Phone } from 'lucide-react';
+import { Search, Sun, Moon, LogOut, Phone, Cake, Package, Tag, Copy } from 'lucide-react';
 import { motion } from 'framer-motion';
 import CallLogForm, { CallFormData } from '../components/CallLogForm';
-import CustomerList, { CustomerCallLog } from '../components/CustomerList';
+import CustomerList from '../components/CustomerList';
+import type { CustomerCallLog as CustomerListCustomerCallLog } from '../components/CustomerList';
+
+const ZaloIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 64 64"
+    aria-hidden="true"
+    className={className}
+    fill="none"
+  >
+    <rect x="6" y="6" width="52" height="52" rx="12" stroke="#0A68FF" strokeWidth="6" />
+    <rect x="14" y="23" width="36" height="22" rx="8" fill="#FFFFFF" />
+    <text
+      x="32"
+      y="38"
+      textAnchor="middle"
+      fontSize="14"
+      fontFamily="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial"
+      fontWeight="700"
+      fill="#0A68FF"
+    >
+      Zalo
+    </text>
+  </svg>
+);
 
 type CallStatus = 'Chốt đơn' | 'Từ chối' | 'Mới' | 'Upsell' | 'Hẹn gọi lại';
 type QueueView = 'pending' | 'callback' | 'processed';
+type ProcessedFilter = 'all' | 'today' | 'week';
 type UserRole = 'ADMIN' | 'AGENT';
 type AgentOption = { id: string; username: string };
 type CallHistoryItem = {
@@ -24,16 +49,78 @@ type CallHistoryItem = {
   timestamp: string;
 };
 
+export type CustomerCallLog = CustomerListCustomerCallLog & {
+  timestamp?: string;
+};
+
 export default function Dashboard() {
   const router = useRouter();
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window === 'undefined') {
-      return false;
-    }
+  const [isMounted, setIsMounted] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    if (typeof window === 'undefined') return;
     const savedTheme = localStorage.getItem('expense-tracker-theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    return savedTheme ? savedTheme === 'dark' : prefersDark;
-  });
+    const resolved = savedTheme ? savedTheme === 'dark' : prefersDark;
+    setIsDark(resolved);
+  }, []);
+
+  const resolvedIsDark = isMounted ? isDark : false;
+
+  const bgStyle = useMemo(() => {
+    return {
+      ...(resolvedIsDark
+        ? {
+            ['--background' as never]: '#050B18',
+            ['--surface' as never]: 'rgba(12, 24, 45, 0.95)',
+            ['--surface-border' as never]: 'rgba(148, 163, 184, 0.14)',
+            ['--blob-1' as never]: 'rgba(14, 165, 233, 0.18)',
+            ['--blob-2' as never]: 'rgba(99, 102, 241, 0.14)',
+            ['--blob-3' as never]: 'rgba(34, 211, 238, 0.12)',
+            ['--ring' as never]: '#93c5fd',
+          }
+        : {
+            ['--background' as never]: '#EEF6FF',
+            ['--surface' as never]: 'rgba(255, 255, 255, 0.92)',
+            ['--surface-border' as never]: 'rgba(15, 23, 42, 0.12)',
+            ['--blob-1' as never]: 'rgba(14, 165, 233, 0.14)',
+            ['--blob-2' as never]: 'rgba(99, 102, 241, 0.12)',
+            ['--blob-3' as never]: 'rgba(34, 211, 238, 0.10)',
+            ['--ring' as never]: '#2563eb',
+          }),
+    } as CSSProperties;
+  }, [resolvedIsDark]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const root = document.documentElement;
+    const keys = ['--background', '--surface', '--surface-border', '--blob-1', '--blob-2', '--blob-3'] as const;
+
+    if (!bgStyle) {
+      for (const key of keys) {
+        root.style.removeProperty(key);
+      }
+      return;
+    }
+
+    for (const key of keys) {
+      const value = (bgStyle as unknown as Record<string, string | undefined>)[key];
+      if (typeof value === 'string' && value.trim()) {
+        root.style.setProperty(key, value);
+      } else {
+        root.style.removeProperty(key);
+      }
+    }
+
+    return () => {
+      for (const key of keys) {
+        root.style.removeProperty(key);
+      }
+    };
+  }, [bgStyle, resolvedIsDark]);
   const [callLogs, setCallLogs] = useState<CustomerCallLog[]>([]);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(true);
   const [customerLoadError, setCustomerLoadError] = useState<string | null>(null);
@@ -41,11 +128,12 @@ export default function Dashboard() {
     customerName: '',
     phoneNumber: '',
     callStatus: '',
-    revenue: '0',
-    callbackDate: new Date().toISOString().split('T')[0],
+    revenue: '',
+    callbackDate: '',
     callbackTime: '',
     assignedTo: '',
     note: '',
+    productsPurchased: '',
   });
   const [loggedInRole, setLoggedInRole] = useState<UserRole>('AGENT');
   const [loggedInUser, setLoggedInUser] = useState<string>('User');
@@ -60,11 +148,13 @@ export default function Dashboard() {
   const [activeCustomerId, setActiveCustomerId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [queueView, setQueueView] = useState<QueueView>('pending');
+  const [processedFilter, setProcessedFilter] = useState<ProcessedFilter>('all');
 
   useEffect(() => {
+    if (!isMounted) return;
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
     localStorage.setItem('expense-tracker-theme', isDark ? 'dark' : 'light');
-  }, [isDark]);
+  }, [isDark, isMounted]);
 
   useEffect(() => {
     const fetchMe = async () => {
@@ -83,6 +173,14 @@ export default function Dashboard() {
 
     void fetchMe();
   }, []);
+
+  useEffect(() => {
+    if (!isMounted) return;
+    setFormData((prev) => {
+      if ((prev.callbackDate || '').trim()) return prev;
+      return { ...prev, callbackDate: new Date().toISOString().split('T')[0] };
+    });
+  }, [isMounted]);
 
   useEffect(() => {
     const fetchAgents = async () => {
@@ -151,7 +249,42 @@ export default function Dashboard() {
     return () => clearTimeout(timeout);
   }, [toastMessage]);
 
+  const copyToClipboard = async (value: string, label: string) => {
+    const text = (value || '').trim();
+    if (!text) {
+      setToastMessage(`Không có ${label} để copy.`);
+      return;
+    }
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const el = document.createElement('textarea');
+        el.value = text;
+        el.style.position = 'fixed';
+        el.style.left = '-9999px';
+        el.style.top = '0';
+        document.body.appendChild(el);
+        el.focus();
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+      }
+      setToastMessage(`Đã copy ${label}.`);
+    } catch {
+      setToastMessage(`Copy ${label} thất bại.`);
+    }
+  };
+
   const filteredCallLogs = useMemo(() => {
+    const now = new Date();
+    const todayKey = now.toISOString().slice(0, 10);
+    const weekStart = new Date(now);
+    weekStart.setHours(0, 0, 0, 0);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    const weekStartEpoch = weekStart.getTime();
+
     const filtered = callLogs.filter((log) => {
       const matchesSearch = [
         log.customerCode,
@@ -169,7 +302,36 @@ export default function Dashboard() {
           : queueView === 'callback'
             ? log.callStatus === 'Hẹn gọi lại'
             : ['Chốt đơn', 'Từ chối', 'Upsell'].includes(log.callStatus);
-      return matchesSearch && matchesQueue;
+
+      const matchesProcessedTime = (() => {
+        if (queueView !== 'processed') return true;
+        if (processedFilter === 'all') return true;
+
+        const epoch = (() => {
+          if (log.callStatus === 'Chốt đơn') {
+            const raw = (log.lastOrderAt || '').trim();
+            if (raw) {
+              const d = new Date(raw);
+              if (!Number.isNaN(d.getTime())) return d.getTime();
+            }
+          }
+          const raw = (log.lastInteractionAt || log.timestamp || '').trim();
+          if (raw) {
+            const d = new Date(raw);
+            if (!Number.isNaN(d.getTime())) return d.getTime();
+          }
+          return null;
+        })();
+
+        if (epoch == null) return false;
+        if (processedFilter === 'today') {
+          const d = new Date(epoch);
+          return d.toISOString().slice(0, 10) === todayKey;
+        }
+        return epoch >= weekStartEpoch;
+      })();
+
+      return matchesSearch && matchesQueue && matchesProcessedTime;
     });
 
     if (queueView !== 'callback') return filtered;
@@ -178,7 +340,7 @@ export default function Dashboard() {
       const bTime = new Date(`${b.callbackDate || '9999-12-31'}T${b.callbackTime || '23:59'}`).getTime();
       return aTime - bTime;
     });
-  }, [callLogs, searchTerm, queueView]);
+  }, [callLogs, processedFilter, searchTerm, queueView]);
 
   const countNew = useMemo(() => callLogs.filter((log) => log.callStatus === 'Mới').length, [callLogs]);
 
@@ -194,7 +356,18 @@ export default function Dashboard() {
 
   const closedTodayCount = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
-    return callLogs.filter((log) => log.callStatus === 'Chốt đơn' && log.callbackDate === today).length;
+    return callLogs.filter((log) => {
+      if (log.callStatus !== 'Chốt đơn') return false;
+      const raw = (log.lastOrderAt || '').trim();
+      if (!raw) return false;
+      try {
+        const d = new Date(raw);
+        if (Number.isNaN(d.getTime())) return false;
+        return d.toISOString().slice(0, 10) === today;
+      } catch {
+        return false;
+      }
+    }).length;
   }, [callLogs]);
 
   const saveCallLog = async () => {
@@ -236,6 +409,7 @@ export default function Dashboard() {
           callbackDate: formData.callbackDate,
           callbackTime: formData.callbackTime,
           notes: formData.note,
+          productsPurchased: formData.productsPurchased,
         }),
       });
 
@@ -268,6 +442,14 @@ export default function Dashboard() {
               callbackDate: formData.callbackDate || item.callbackDate,
               callbackTime: formData.callStatus === 'Hẹn gọi lại' ? formData.callbackTime : '',
               note: formData.note,
+              lastOrderAt:
+                formData.callStatus === 'Chốt đơn' || formData.callStatus === 'Upsell'
+                  ? new Date().toISOString()
+                  : item.lastOrderAt,
+              productsPurchased:
+                formData.callStatus === 'Chốt đơn' || formData.callStatus === 'Upsell'
+                  ? (formData.productsPurchased || '').trim()
+                  : item.productsPurchased,
             }
           : item
       );
@@ -283,11 +465,12 @@ export default function Dashboard() {
         customerName: nextCustomer?.customerName ?? '',
         phoneNumber: nextCustomer?.phoneNumber ?? '',
         callStatus: '',
-        revenue: '0',
+        revenue: '',
         callbackDate: new Date().toISOString().split('T')[0],
         callbackTime: '',
         assignedTo: loggedInUser,
         note: '',
+        productsPurchased: nextCustomer?.productsPurchased ?? '',
       });
     } catch (error) {
       console.error('Save call log error:', error);
@@ -365,12 +548,102 @@ export default function Dashboard() {
       callStatus: ['Chốt đơn', 'Từ chối', 'Upsell', 'Hẹn gọi lại'].includes(customer.callStatus)
         ? customer.callStatus
         : '',
+      revenue: '',
       callbackDate: customer.callbackDate || new Date().toISOString().split('T')[0],
       callbackTime: customer.callbackTime ?? '',
       assignedTo: loggedInUser,
       note: customer.note,
+      productsPurchased: customer.productsPurchased ?? '',
     }));
   };
+
+  const [productsExpanded, setProductsExpanded] = useState(false);
+
+  const activeProducts = useMemo(() => {
+    const raw = (activeCustomer?.productsPurchased ?? '').trim();
+    if (!raw) return [];
+    return raw
+      .split(',')
+      .map((p: string) => p.trim())
+      .filter(Boolean);
+  }, [activeCustomer]);
+
+  const birthdayLabel = useMemo(() => {
+    const value = activeCustomer?.birthday;
+    if (!value) return '';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('vi-VN');
+  }, [activeCustomer]);
+
+  const lastOrderLabel = useMemo(() => {
+    const value = activeCustomer?.lastOrderAt;
+    if (!value) return '';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('vi-VN');
+  }, [activeCustomer]);
+
+  const nextCallLabel = useMemo(() => {
+    if (!activeCustomer) return '';
+
+    const status = (activeCustomer.callStatus || '').trim();
+    const isClosed = status === 'Chốt đơn' || status === 'Upsell';
+    if (isClosed) {
+      const value = (activeCustomer.lastOrderAt || '').trim();
+      if (value) {
+        const d = new Date(value);
+        if (!Number.isNaN(d.getTime())) {
+          const next = new Date(d);
+          next.setMonth(next.getMonth() + 1);
+          return next.toLocaleDateString('vi-VN');
+        }
+      }
+    }
+
+    const hasCallback = (activeCustomer.callbackDate || '').trim();
+    if (hasCallback) {
+      try {
+        const raw = activeCustomer.callbackTime
+          ? `${activeCustomer.callbackDate}T${activeCustomer.callbackTime}`
+          : `${activeCustomer.callbackDate}T09:00`;
+        const d = new Date(raw);
+        if (!Number.isNaN(d.getTime())) {
+          return d.toLocaleString('vi-VN');
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const base = (() => {
+      const last = (activeCustomer.lastInteractionAt || '').trim();
+      if (last) {
+        const d = new Date(last);
+        if (!Number.isNaN(d.getTime())) return d;
+      }
+      return new Date();
+    })();
+
+    const next = new Date(base);
+    next.setMonth(next.getMonth() + 1);
+    return next.toLocaleDateString('vi-VN');
+  }, [activeCustomer]);
+
+  const showNextCall = useMemo(() => {
+    const status = (activeCustomer?.callStatus || '').trim();
+    return status === 'Chốt đơn' || status === 'Upsell';
+  }, [activeCustomer]);
+
+  const showNotes = useMemo(() => {
+    const status = (activeCustomer?.callStatus || '').trim();
+    return status !== 'Mới';
+  }, [activeCustomer]);
+
+  const showProcessedOnlyInfo = useMemo(() => {
+    const status = (activeCustomer?.callStatus || '').trim();
+    return status === 'Chốt đơn' || status === 'Upsell';
+  }, [activeCustomer]);
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -379,7 +652,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="h-screen px-4 py-3 md:px-5 overflow-hidden">
+    <div className="h-screen px-4 py-3 md:px-5 overflow-hidden" style={bgStyle}>
       <div className="max-w-full h-full">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -387,28 +660,35 @@ export default function Dashboard() {
           transition={{ duration: 0.6 }}
           className="h-16 flex justify-between items-center mb-4"
         >
-          <h1 className={`text-2xl font-black bg-linear-to-r bg-clip-text text-transparent tracking-tight ${isDark ? 'from-sky-200 via-blue-300 to-cyan-300' : 'from-blue-800 via-sky-700 to-cyan-600'}`}>
+          <h1
+            className={`text-2xl font-black bg-linear-to-r bg-clip-text text-transparent tracking-tight ${
+              resolvedIsDark ? 'from-sky-200 via-blue-300 to-cyan-300' : 'from-blue-800 via-sky-700 to-cyan-600'
+            }`}
+          >
             Professional Telesales Workspace
           </h1>
+
           <div className="flex items-center gap-2">
-            <motion.button
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.96 }}
+            <button
+              type="button"
               onClick={() => setIsDark((prev) => !prev)}
-              className={`h-10 w-10 rounded-xl border backdrop-blur-xl flex items-center justify-center shadow-sm focus:outline-none focus:ring-2 transition-all ${isDark ? 'bg-slate-900/50 border-slate-700 text-sky-200 focus:ring-sky-400' : 'bg-white/50 border-white/70 text-blue-700 focus:ring-blue-400'}`}
-              aria-label="Toggle theme"
+              className={
+                resolvedIsDark
+                  ? 'h-10 px-3 rounded-2xl border border-white/10 bg-slate-900/35 hover:bg-slate-900/45 transition inline-flex items-center gap-2 text-sm font-bold text-slate-100'
+                  : 'h-10 px-3 rounded-2xl border border-white/70 bg-white/65 hover:bg-white/80 transition inline-flex items-center gap-2 text-sm font-bold text-slate-800'
+              }
+              title="Chuyển sáng/tối"
+              aria-label="Chuyển sáng/tối"
             >
-              {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </motion.button>
+              {resolvedIsDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {resolvedIsDark ? 'Light' : 'Dark'}
+            </button>
+
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               onClick={handleLogout}
-              className={`px-4 py-2.5 rounded-xl border backdrop-blur-xl flex items-center transition-all ${
-                isDark
-                  ? 'bg-slate-900/45 border-slate-700/60 text-slate-100'
-                  : 'bg-white/45 border-white/60 text-slate-700'
-              }`}
+              className="ui-btn"
             >
               <LogOut className="h-4 w-4 mr-2" />
               Đăng xuất
@@ -417,18 +697,14 @@ export default function Dashboard() {
         </motion.div>
         <div className="h-[calc(100vh-80px)] grid grid-cols-1 xl:grid-cols-[25%_45%_30%] gap-4">
           <section className="h-full flex flex-col gap-3 overflow-hidden">
-            <div className={`backdrop-blur-2xl p-4 rounded-3xl border shadow-2xl ${
-              isDark ? 'bg-slate-900/60 border-white/10' : 'bg-white/60 border-white/20'
-            }`}>
+            <div className={`ui-card p-4 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
               <div className="relative mb-2">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search name or phone"
-                  className={`h-11 w-full pl-10 pr-3 rounded-2xl border backdrop-blur-2xl text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-blue-400/50 ${
-                    isDark ? 'bg-white/10 border-white/10 text-slate-100 placeholder:text-slate-400' : 'bg-white/40 border-white/20 text-slate-800 placeholder:text-slate-500'
-                  }`}
+                  className="ui-input pl-10 pr-3"
                 />
               </div>
 
@@ -437,11 +713,7 @@ export default function Dashboard() {
                   <select
                     value={adminAssignedToId}
                     onChange={(e) => setAdminAssignedToId(e.target.value)}
-                    className={`h-11 w-full px-3 rounded-2xl border backdrop-blur-2xl text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-blue-400/50 ${
-                      isDark
-                        ? 'bg-white/10 border-white/10 text-slate-100'
-                        : 'bg-white/40 border-white/20 text-slate-800'
-                    }`}
+                    className="ui-input"
                   >
                     <option value="">Tất cả nhân viên</option>
                     {agentOptions.map((agent) => (
@@ -547,6 +819,56 @@ export default function Dashboard() {
                   </span>
                 </button>
               </div>
+
+              {queueView === 'processed' && (
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setProcessedFilter('all')}
+                    className={`h-9 rounded-lg text-[12px] font-bold border transition-all ${
+                      processedFilter === 'all'
+                        ? isDark
+                          ? 'bg-white/15 border-white/25 text-slate-100'
+                          : 'bg-white/70 border-white/60 text-slate-900'
+                        : isDark
+                          ? 'bg-white/5 border-white/10 text-slate-200 hover:bg-white/10'
+                          : 'bg-white/30 border-white/20 text-slate-700 hover:bg-white/45'
+                    }`}
+                  >
+                    Tất cả
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProcessedFilter('today')}
+                    className={`h-9 rounded-lg text-[12px] font-bold border transition-all ${
+                      processedFilter === 'today'
+                        ? isDark
+                          ? 'bg-white/15 border-white/25 text-slate-100'
+                          : 'bg-white/70 border-white/60 text-slate-900'
+                        : isDark
+                          ? 'bg-white/5 border-white/10 text-slate-200 hover:bg-white/10'
+                          : 'bg-white/30 border-white/20 text-slate-700 hover:bg-white/45'
+                    }`}
+                  >
+                    Hôm nay
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProcessedFilter('week')}
+                    className={`h-9 rounded-lg text-[12px] font-bold border transition-all ${
+                      processedFilter === 'week'
+                        ? isDark
+                          ? 'bg-white/15 border-white/25 text-slate-100'
+                          : 'bg-white/70 border-white/60 text-slate-900'
+                        : isDark
+                          ? 'bg-white/5 border-white/10 text-slate-200 hover:bg-white/10'
+                          : 'bg-white/30 border-white/20 text-slate-700 hover:bg-white/45'
+                    }`}
+                  >
+                    Tuần này
+                  </button>
+                </div>
+              )}
             </div>
             <CustomerList
               customers={filteredCallLogs}
@@ -567,47 +889,168 @@ export default function Dashboard() {
           </section>
 
           <section className="h-full flex flex-col gap-3 overflow-hidden">
-            <div className={`backdrop-blur-2xl p-5 rounded-3xl border shadow-2xl ${
-              isDark ? 'bg-slate-900/60 border-white/10' : 'bg-white/60 border-white/20'
-            }`}>
+            <div className={`ui-card p-5 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
               <p className={`text-xs uppercase tracking-[0.15em] mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 Currently Calling
               </p>
-              <h2 className={`text-xl font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-                {activeCustomer?.customerName ?? 'No customer selected'}
-              </h2>
-              <p className={`text-xs mt-1 ${isDark ? 'text-sky-300' : 'text-blue-700'}`}>
-                {activeCustomer?.customerCode ?? '--'}
-              </p>
-              <div className={`mt-2 flex items-center text-sm ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                <Phone className="h-4 w-4 mr-2" />
-                {activeCustomer?.phoneNumber ?? '--'}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className={`text-xl font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'} truncate`}>
+                    {activeCustomer?.customerName ?? 'No customer selected'}
+                  </h2>
+                  <div className="mt-1 flex items-center gap-2 flex-wrap">
+                    <span className={`text-xs font-semibold ${isDark ? 'text-sky-300' : 'text-blue-700'}`}>
+                      {activeCustomer?.customerCode ?? '--'}
+                    </span>
+                    <span
+                      className={`ui-chip ${
+                        isDark
+                          ? 'bg-white/5 border-white/10 text-slate-200'
+                          : 'bg-white/45 border-white/60 text-slate-700'
+                      }`}
+                      title="Trạng thái khách hàng"
+                    >
+                      Status: {activeCustomer?.callStatus ?? 'Mới'}
+                    </span>
+                    <span
+                      className={`ui-chip ${
+                        activeCustomer?.zaloConnected
+                          ? isDark
+                            ? 'bg-emerald-500/10 border-emerald-400/25 text-emerald-200'
+                            : 'bg-emerald-50/80 border-emerald-200 text-emerald-700'
+                          : isDark
+                            ? 'bg-slate-800/40 border-slate-700/60 text-slate-300'
+                            : 'bg-white/35 border-white/60 text-slate-600'
+                      }`}
+                      title="Kết nối Zalo"
+                    >
+                      <span className="inline-flex items-center gap-1.5">
+                        <ZaloIcon className="h-6 w-6" />
+                        <span>{activeCustomer?.zaloConnected ? 'Đã kết nối' : 'Chưa kết nối'}</span>
+                      </span>
+                    </span>
+
+                    <span
+                      className={`ui-chip ${
+                        isDark
+                          ? 'bg-white/5 border-white/10 text-slate-200'
+                          : 'bg-white/45 border-white/60 text-slate-700'
+                      }`}
+                      title="Sinh nhật"
+                    >
+                      <span className="inline-flex items-center gap-1.5">
+                        <Cake className={`h-4 w-4 ${isDark ? 'text-amber-300' : 'text-amber-700'}`} />
+                        <span>{birthdayLabel || '--'}</span>
+                      </span>
+                    </span>
+                  </div>
+                </div>
+                <div className={`shrink-0 inline-flex flex-col items-end gap-1 rounded-xl border px-2.5 py-1 text-sm ${isDark ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-white/45 border-white/60 text-slate-700'}`}>
+                  <div className={`text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                    Đối tác: {activeCustomer?.partner ? activeCustomer.partner : '--'}
+                  </div>
+                  <div className="inline-flex items-center gap-1.5">
+                    <Phone className="h-4 w-4 mr-2" />
+                    <span className="font-semibold">{activeCustomer?.phoneNumber ?? '--'}</span>
+                    <button
+                      type="button"
+                      onClick={() => void copyToClipboard(activeCustomer?.phoneNumber ?? '', 'SĐT')}
+                      className={`ml-1 inline-flex items-center justify-center rounded-lg border h-7 w-7 transition ${
+                        isDark
+                          ? 'bg-white/5 border-white/10 hover:bg-white/10'
+                          : 'bg-white/35 border-white/50 hover:bg-white/55'
+                      }`}
+                      title="Copy số điện thoại"
+                      aria-label="Copy số điện thoại"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className={`backdrop-blur-2xl p-5 rounded-3xl border shadow-2xl flex-1 overflow-y-auto ${
-              isDark ? 'bg-slate-900/60 border-white/10' : 'bg-white/60 border-white/20'
-            }`}>
-              <h3 className={`text-lg font-semibold mb-3 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>Call Interface</h3>
-              <CallLogForm
-                formData={formData}
-                setFormData={setFormData}
-                onSubmit={saveCallLog}
-                onValidationError={setToastMessage}
-                isDark={isDark}
-                compact
-                isSaving={isSaving}
-                saveSucceeded={saveSucceeded}
-              />
-              {isSaving && (
-                <p className={`text-xs mt-2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Đang lưu nhật ký cuộc gọi...</p>
+
+              {showProcessedOnlyInfo && (
+                <div className="mt-3 grid gap-2 grid-cols-1 md:grid-cols-2">
+                  <div
+                    className={`rounded-2xl border px-3 py-2 text-sm ${
+                      isDark ? 'bg-white/5 border-white/10' : 'bg-white/35 border-white/30'
+                    }`}
+                  >
+                    <div className={`text-xs font-bold tracking-wide ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Chốt đơn gần nhất</div>
+                    <div className="mt-1 inline-flex items-center gap-2">
+                      <Package className={`h-4 w-4 ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`} />
+                      <span className={`${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{lastOrderLabel || '--'}</span>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`rounded-2xl border px-3 py-2 text-sm ${
+                      isDark ? 'bg-white/5 border-white/10' : 'bg-white/35 border-white/30'
+                    }`}
+                  >
+                    <div className={`text-xs font-bold tracking-wide ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Lịch gọi tiếp theo</div>
+                    <div className={`mt-1 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{nextCallLabel || '--'}</div>
+                  </div>
+                </div>
+              )}
+
+              {showProcessedOnlyInfo && (
+                <div className={`mt-3 rounded-2xl border px-3 py-2 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white/35 border-white/30'}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className={`text-xs font-bold tracking-wide ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Mặt hàng đã lấy</div>
+                    {activeProducts.length > 6 && (
+                      <button
+                        type="button"
+                        onClick={() => setProductsExpanded((v: boolean) => !v)}
+                        className={`text-xs font-bold underline underline-offset-4 ${isDark ? 'text-sky-300' : 'text-blue-700'}`}
+                      >
+                        {productsExpanded ? 'Thu gọn' : 'Xem thêm'}
+                      </button>
+                    )}
+                  </div>
+
+                  {activeProducts.length === 0 ? (
+                    <div className={`mt-1 text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>--</div>
+                  ) : (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {(productsExpanded ? activeProducts : activeProducts.slice(0, 6)).map((p) => (
+                        <span
+                          key={p}
+                          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                            isDark ? 'bg-white/5 border-white/10 text-slate-100' : 'bg-white/45 border-white/60 text-slate-800'
+                          }`}
+                        >
+                          <Tag className="h-3.5 w-3.5" />
+                          <span className="max-w-55 truncate" title={p}>
+                            {p}
+                          </span>
+                        </span>
+                      ))}
+                      {!productsExpanded && activeProducts.length > 6 && (
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold ${
+                            isDark ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-white/35 border-white/60 text-slate-700'
+                          }`}
+                        >
+                          +{activeProducts.length - 6}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {showNotes && (
+                <div className={`mt-3 rounded-2xl border px-3 py-2 text-sm ${isDark ? 'bg-white/5 border-white/10' : 'bg-white/35 border-white/30'}`}>
+                  <div className={`text-xs font-bold tracking-wide ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Ghi chú</div>
+                  <div className={`mt-1 whitespace-pre-wrap ${isDark ? 'text-slate-100' : 'text-slate-900'}`} title={activeCustomer?.note || ''}>
+                    {activeCustomer?.note ? activeCustomer.note : '--'}
+                  </div>
+                </div>
               )}
             </div>
-          </section>
 
-          <section className="h-full">
-            <div className={`backdrop-blur-2xl p-6 rounded-3xl border shadow-2xl h-full ${
-              isDark ? 'bg-slate-900/60 border-white/10' : 'bg-white/60 border-white/20'
-            }`}>
+            <div className={`ui-card p-6 flex-1 overflow-hidden ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
               <h3 className={`text-xl font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>Customer Insight</h3>
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <button
@@ -639,7 +1082,7 @@ export default function Dashboard() {
               </div>
 
               {insightTab === 'history' ? (
-                <div className="mt-4 space-y-3 max-h-[calc(100%-100px)] overflow-y-auto pr-1">
+                <div className="mt-4 space-y-3 h-[calc(100%-100px)] overflow-y-auto ui-scrollbar pr-1">
                   {customerCallHistory.map((item) => (
                     <div
                       key={item.id}
@@ -684,13 +1127,30 @@ export default function Dashboard() {
               )}
             </div>
           </section>
+
+          <section className="h-full">
+            <div className={`ui-card p-5 h-full overflow-y-auto ui-scrollbar ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+              <h3 className={`text-lg font-semibold mb-3 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>Call Interface</h3>
+              <CallLogForm
+                formData={formData}
+                setFormData={setFormData}
+                onSubmit={saveCallLog}
+                onValidationError={setToastMessage}
+                isDark={isDark}
+                compact
+                isSaving={isSaving}
+                saveSucceeded={saveSucceeded}
+              />
+              {isSaving && (
+                <p className={`text-xs mt-2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Đang lưu nhật ký cuộc gọi...</p>
+              )}
+            </div>
+          </section>
         </div>
       </div>
       {toastMessage && (
         <div className="fixed top-4 right-4 z-50">
-          <div className={`backdrop-blur-xl border rounded-xl px-4 py-2 text-sm shadow-lg ${
-            isDark ? 'bg-slate-900/70 border-slate-700 text-slate-100' : 'bg-white/80 border-white/70 text-slate-800'
-          }`}>
+          <div className="ui-card-soft rounded-2xl px-4 py-2 text-sm">
             {toastMessage}
           </div>
         </div>

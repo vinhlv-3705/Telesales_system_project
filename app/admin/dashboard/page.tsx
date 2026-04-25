@@ -115,9 +115,7 @@ export default function AdminDashboardPage() {
       <motion.div
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`backdrop-blur-2xl rounded-3xl border shadow-2xl p-6 ${
-          isDark ? "bg-slate-900/60 border-white/10 text-slate-100" : "bg-white/60 border-white/20 text-slate-900"
-        }`}
+        className={`ui-card p-6 ${isDark ? "text-slate-100" : "text-slate-900"}`}
       >
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
@@ -130,16 +128,12 @@ export default function AdminDashboardPage() {
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className={`h-11 px-3 rounded-2xl border bg-white/20 backdrop-blur-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 ${
-                isDark ? "border-white/10 text-white" : "border-white/20 text-slate-900"
-              }`}
+              className="ui-input"
             />
             <button
               type="button"
               onClick={fetchAll}
-              className={`h-11 px-4 rounded-2xl border inline-flex items-center gap-2 text-sm font-bold transition ${
-                isDark ? "bg-white/10 border-white/10 hover:bg-white/15" : "bg-white/50 border-white/30 hover:bg-white/70"
-              }`}
+              className="ui-btn"
               title="Refresh"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
@@ -151,7 +145,7 @@ export default function AdminDashboardPage() {
         {error && <div className="mt-4 text-sm text-rose-500">{error}</div>}
 
         <div className={`mt-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 ${loading ? "opacity-70" : ""}`}>
-          <div className={`rounded-3xl border p-4 backdrop-blur-2xl ${isDark ? "bg-white/5 border-white/10" : "bg-white/35 border-white/20"}`}>
+          <div className="ui-card-soft p-4">
             <div className="flex items-center justify-between">
               <div className="text-xs opacity-70">Tổng cuộc gọi trong ngày</div>
               <PhoneCall className="h-4 w-4 opacity-70" />
@@ -159,7 +153,7 @@ export default function AdminDashboardPage() {
             <div className="text-3xl font-black mt-2">{totalCalls}</div>
           </div>
 
-          <div className={`rounded-3xl border p-4 backdrop-blur-2xl ${isDark ? "bg-white/5 border-white/10" : "bg-white/35 border-white/20"}`}>
+          <div className="ui-card-soft p-4">
             <div className="flex items-center justify-between">
               <div className="text-xs opacity-70">Tổng doanh thu</div>
               <ArrowUpRight className="h-4 w-4 opacity-70" />
@@ -167,7 +161,7 @@ export default function AdminDashboardPage() {
             <div className="text-3xl font-black mt-2">{totalRevenue.toLocaleString("vi-VN")} VND</div>
           </div>
 
-          <div className={`rounded-3xl border p-4 backdrop-blur-2xl ${isDark ? "bg-white/5 border-white/10" : "bg-white/35 border-white/20"}`}>
+          <div className="ui-card-soft p-4">
             <div className="flex items-center justify-between">
               <div className="text-xs opacity-70">Tỷ lệ chốt đơn</div>
               <CheckCircle2 className="h-4 w-4 opacity-70" />
@@ -175,7 +169,7 @@ export default function AdminDashboardPage() {
             <div className="text-3xl font-black mt-2">{closeRate}%</div>
           </div>
 
-          <div className={`rounded-3xl border p-4 backdrop-blur-2xl ${isDark ? "bg-white/5 border-white/10" : "bg-white/35 border-white/20"}`}>
+          <div className="ui-card-soft p-4">
             <div className="flex items-center justify-between">
               <div className="text-xs opacity-70">Khách cần gọi lại</div>
               <CalendarClock className="h-4 w-4 opacity-70" />
@@ -185,7 +179,7 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="mt-5 grid grid-cols-1 xl:grid-cols-2 gap-3">
-          <div className={`rounded-3xl border p-4 backdrop-blur-2xl ${isDark ? "bg-white/5 border-white/10" : "bg-white/35 border-white/20"}`}>
+          <div className="ui-card-soft p-4">
             <div className="font-extrabold">Doanh thu theo nhân viên</div>
             <div className={`mt-1 text-xs ${isDark ? "text-slate-300" : "text-slate-600"}`}>Tổng doanh thu trong ngày theo user.</div>
             <div className="mt-3 h-70">
@@ -201,7 +195,7 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
-          <div className={`rounded-3xl border p-4 backdrop-blur-2xl ${isDark ? "bg-white/5 border-white/10" : "bg-white/35 border-white/20"}`}>
+          <div className="ui-card-soft p-4">
             <div className="font-extrabold">Xu hướng cuộc gọi</div>
             <div className={`mt-1 text-xs ${isDark ? "text-slate-300" : "text-slate-600"}`}>Call volume theo ngày (dữ liệu đang là snapshot theo bộ lọc).</div>
             <div className="mt-3 h-70">

@@ -111,11 +111,16 @@ Models:
   - `username`, `password`, `role`
   - lock fields: `isLocked`, `lockedAt`
 - `Customer`
-  - thông tin khách
-  - `status` là text (có thể chứa nhãn tiếng Việt hoặc enum code)
-  - `assignedToId` → `User`
-- `CallLog`
-  - `customerId`, `agentId` → `User`
+  - Thông tin khách hàng: `customerCode`, `fullName`, `phone`, `address`, `area`, `groupCode`, ...
+  - Phân công: `assignedToId` -> `User`
+  - Trạng thái: `status`, `callbackTime`
+  - Chăm sóc/đơn hàng:
+    - `birthday` (DateTime?): sinh nhật khách
+    - `lastOrderAt` (DateTime?): ngày chốt đơn gần nhất
+    - `productsPurchased` (string?): danh sách mặt hàng đã lấy (nhập dạng chuỗi, ngăn cách bằng dấu phẩy)
+  - Kết nối:
+    - `zaloConnected` (boolean): trạng thái kết nối Zalo (default `false`)
+  - `customerId`, `agentId` -> `User`
   - `callStatus` (enum), `timestamp`
 
 ## 6. Business Logic Notes
@@ -128,6 +133,10 @@ Trong một số API admin, có mapping giữa:
 
 Khi filter hoặc hiển thị cần handle cả 2 format.
 
+Ghi chú:
+
+- Backend khi ghi nhận call log sẽ persist `Customer.status` theo **enum code** (`MOI`, `HEN_GOI_LAI`, `CHOT_DON`, `TU_CHOI`, `UPSALE`) để tránh dữ liệu bị trộn format.
+
 ### 6.2 Seed dữ liệu
 - Seed script: `prisma/seed.ts`
 - Dữ liệu seed tạo:
@@ -135,6 +144,42 @@ Khi filter hoặc hiển thị cần handle cả 2 format.
   - agents user1..user4
   - ingest khách hàng từ CSV
   - phân bổ khách cho agents
+
+### 6.3 Telesales UI rules (Currently Calling)
+- Luôn hiển thị: `Status`, `Kết nối Zalo`, `Sinh nhật`.
+- Quick actions: copy `SĐT`.
+- Chỉ hiển thị khi status là `Chốt đơn` hoặc `Upsell`:
+  - `Chốt đơn gần nhất`
+  - `Mặt hàng đã lấy`
+  - `Lịch gọi tiếp theo`
+    - Default +1 tháng tính từ `lastOrderAt` (ngày chốt đơn gần nhất)
+
+Layout notes:
+
+- `Sinh nhật` hiển thị dạng chip (cạnh khu vực Zalo).
+- `Chốt đơn gần nhất` và `Lịch gọi tiếp theo` là **2 card tách biệt**.
+- `Ghi chú` hiển thị ở cuối panel.
+
+### 6.4 Call Interface validation rules
+- `Chốt đơn` / `Upsell`:
+  - Bắt buộc `Doanh thu > 0`
+  - Bắt buộc `Ghi chú`
+- `Từ chối`:
+  - Bắt buộc `Ghi chú`
+- `Hẹn gọi lại`:
+  - Bắt buộc `Ngày hẹn lại`
+  - Không nhập `Giờ hẹn lại`
+- Message validate được hiển thị inline ngay dưới phần chọn `Kết quả cuộc gọi`.
+
+### 6.5 Telesales processed filter
+- Ở tab `Đã xử lý`, UI có filter `Tất cả` / `Hôm nay` / `Tuần này`.
+- Rule tính thời gian:
+  - `Chốt đơn`: dùng `Customer.lastOrderAt`
+  - Status còn lại: dùng `lastInteractionAt` (timestamp của call log gần nhất)
+
+### 6.6 Theme toggle
+- Telesales chỉ hỗ trợ toggle `Dark/Light`.
+- Theme key: `expense-tracker-theme`.
 
 ## 7. Key API Endpoints
 
@@ -147,7 +192,13 @@ Public/auth:
 Agent:
 
 - `GET /api/customers`
+  - Response: mỗi customer có thêm:
+    - `birthday`, `lastOrderAt`, `productsPurchased` để hiển thị ở panel chi tiết
+    - `zaloConnected`
+    - `lastInteractionAt` (ISO timestamp của call log gần nhất, nếu có)
 - `POST /api/call-logs` (nếu có trong dự án) / các route ghi nhận call log
+  - Body có thể gửi thêm `productsPurchased` khi `status` là `Chốt đơn`/`Upsell`
+  - Khi `status` là `Chốt đơn`/`Upsell`, backend sẽ update `Customer.lastOrderAt` và `Customer.productsPurchased`
 
 Admin:
 
@@ -179,6 +230,7 @@ Admin:
   - chạy migrate local
   - commit `prisma/migrations/*`
   - deploy xong apply `migrate deploy` cho DB production (tuỳ quy trình)
+  - chạy lại `prisma generate` để cập nhật Prisma Client types
 - Nếu thêm env var mới:
   - update tài liệu này
   - update `specs/requirements.md` nếu ảnh hưởng nghiệp vụ

@@ -48,28 +48,28 @@ export default function LoginPage() {
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md backdrop-blur-xl p-8 rounded-2xl border bg-white/40 border-white/60 shadow-[0_10px_30px_rgb(0,0,0,0.06)]"
+        className="w-full max-w-md ui-card p-8"
       >
-        <h1 className="text-3xl font-black mb-2 text-slate-800">Telesales CRM</h1>
-        <p className="mb-6 text-slate-600">Đăng nhập để vào màn hình telesales.</p>
+        <h1 className="text-3xl font-black mb-2 text-foreground">Telesales CRM</h1>
+        <p className="mb-6 opacity-80 text-foreground">Đăng nhập để vào màn hình telesales.</p>
         <div className="space-y-4">
           <div className="relative">
-            <UserRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <UserRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-60" />
             <input
               value={form.username}
               onChange={(e) => setForm({ ...form, username: e.target.value })}
               placeholder="Tên đăng nhập"
-              className="h-11 w-full pl-10 pr-3 rounded-lg border border-white/50 bg-white/30 backdrop-blur-md"
+              className="ui-input pl-10 pr-3"
             />
           </div>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-60" />
             <input
               type="password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               placeholder="Mật khẩu"
-              className="h-11 w-full pl-10 pr-3 rounded-lg border border-white/50 bg-white/30 backdrop-blur-md"
+              className="ui-input pl-10 pr-3"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   void handleLogin();
@@ -77,11 +77,15 @@ export default function LoginPage() {
               }}
             />
           </div>
-          {error && <p className="text-sm text-rose-500">{error}</p>}
+          {error && (
+            <div className="rounded-2xl border px-3 py-2 text-sm font-semibold bg-rose-500/10 border-rose-500/20 text-rose-600">
+              {error}
+            </div>
+          )}
           <button
             onClick={() => void handleLogin()}
             disabled={isSubmitting}
-            className="w-full h-11 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold disabled:opacity-60"
+            className="w-full ui-btn ui-btn-primary disabled:opacity-60"
           >
             {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
           </button>

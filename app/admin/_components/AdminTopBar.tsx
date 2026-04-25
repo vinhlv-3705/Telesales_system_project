@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronRight, Home, LayoutDashboard, LineChart, Moon, Sun } from "lucide-react";
+import { ChevronRight, Home, LayoutDashboard, LineChart, LogOut, Moon, Sun } from "lucide-react";
 
 const THEME_KEY = "expense-tracker-theme";
 
@@ -75,6 +75,12 @@ export default function AdminTopBar() {
     }, 0);
   };
 
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  };
+
   const buttonClass = isDark
     ? "h-10 px-3 rounded-2xl border border-white/10 bg-slate-900/35 hover:bg-slate-900/45 transition inline-flex items-center gap-2 text-sm font-bold text-slate-100"
     : "h-10 px-3 rounded-2xl border border-white/70 bg-white/65 hover:bg-white/80 transition inline-flex items-center gap-2 text-sm font-bold text-slate-800";
@@ -140,6 +146,16 @@ export default function AdminTopBar() {
           >
             {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             {isDark ? "Light" : "Dark"}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className={buttonClass}
+            title="Đăng xuất"
+          >
+            <LogOut className="h-4 w-4" />
+            Đăng xuất
           </button>
         </div>
       </div>
