@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     const db = prisma as unknown as DbClient;
 
     const body = await request.json();
-    const { customerId, customerName, agentName, status, revenue, callbackDate, callbackTime, notes } = body as {
+    const { customerId, customerName, agentName, status, revenue, callbackDate, callbackTime, notes, productsPurchased } = body as {
       customerId?: string;
       customerName?: string;
       agentName?: string;
@@ -84,6 +84,7 @@ export async function POST(request: Request) {
       callbackDate?: string;
       callbackTime?: string;
       notes?: string;
+      productsPurchased?: string;
     };
 
     if (!customerId || !customerName || !agentName || !status || !notes?.trim()) {
@@ -128,9 +129,15 @@ export async function POST(request: Request) {
       await tx.customer.update({
         where: { id: customerId },
         data: {
-          status: status.trim(),
+          status: toEnumStatus(status.trim()),
           callbackTime: callbackTime?.trim() || null,
-        },
+          lastOrderAt:
+            status.trim() === "Chốt đơn" || status.trim() === "Upsell" ? new Date() : undefined,
+          productsPurchased:
+            status.trim() === "Chốt đơn" || status.trim() === "Upsell"
+              ? (typeof productsPurchased === "string" ? productsPurchased.trim() : "") || null
+              : undefined,
+        } as unknown as never,
       });
 
       return newCallLog;

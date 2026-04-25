@@ -17,6 +17,7 @@ export async function GET(request: Request) {
       id: string;
       customerCode: string;
       fullName: string;
+      birthday?: Date | null;
       phone: string;
       address: string | null;
       area: string | null;
@@ -25,6 +26,9 @@ export async function GET(request: Request) {
       notes: string | null;
       status: string;
       callbackTime: string | null;
+      lastOrderAt?: Date | null;
+      productsPurchased?: string | null;
+      zaloConnected?: boolean | null;
     };
     type DbCallLog = {
       customerId: string;
@@ -86,23 +90,57 @@ export async function GET(request: Request) {
           ? { assignedToId: user.id }
           : { assignedToId: "__NO_USER__" };
 
-    const customers = await db.customer.findMany({
-      where: whereFilter,
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        customerCode: true,
-        fullName: true,
-        phone: true,
-        address: true,
-        area: true,
-        groupCode: true,
-        partner: true,
-        notes: true,
-        status: true,
-        callbackTime: true,
-      },
-    });
+    const customers = await (async () => {
+      try {
+        return await db.customer.findMany({
+          where: whereFilter,
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            customerCode: true,
+            fullName: true,
+            birthday: true,
+            phone: true,
+            address: true,
+            area: true,
+            groupCode: true,
+            partner: true,
+            notes: true,
+            status: true,
+            callbackTime: true,
+            lastOrderAt: true,
+            productsPurchased: true,
+            zaloConnected: true,
+          },
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!message.includes("Unknown field `zaloConnected`")) {
+          throw error;
+        }
+
+        return await db.customer.findMany({
+          where: whereFilter,
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            customerCode: true,
+            fullName: true,
+            birthday: true,
+            phone: true,
+            address: true,
+            area: true,
+            groupCode: true,
+            partner: true,
+            notes: true,
+            status: true,
+            callbackTime: true,
+            lastOrderAt: true,
+            productsPurchased: true,
+          },
+        });
+      }
+    })();
 
     const customerIds = customers.map((customer) => customer.id);
     const latestByCustomerId = new Map<string, DbCallLog>();
@@ -143,10 +181,15 @@ export async function GET(request: Request) {
         area: customer.area ?? "",
         groupCode: customer.groupCode ?? "",
         partner: customer.partner ?? "",
+        birthday: customer.birthday ? customer.birthday.toISOString() : "",
+        lastOrderAt: customer.lastOrderAt ? customer.lastOrderAt.toISOString() : "",
+        productsPurchased: customer.productsPurchased ?? "",
+        zaloConnected: Boolean(customer.zaloConnected),
         callStatus: latest?.callStatus ? fromEnumStatus(latest.callStatus) : fromEnumStatus(customer.status),
         callbackDate: latest?.callbackDate ? latest.callbackDate.toISOString().slice(0, 10) : today,
         callbackTime: latest?.callbackTime ?? customer.callbackTime ?? "",
         note: latest?.notes ?? latest?.note ?? customer.notes ?? "",
+        lastInteractionAt: latest?.timestamp ? latest.timestamp.toISOString() : "",
       };
     });
 

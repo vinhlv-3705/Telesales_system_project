@@ -1,4 +1,5 @@
-import { ArrowUpRight, CalendarClock, CheckCircle2, Clock3, LoaderCircle, Plus, Repeat, Save, XCircle } from "lucide-react";
+import { ArrowUpRight, CalendarClock, CheckCircle2, LoaderCircle, Plus, Repeat, Save, XCircle } from "lucide-react";
+import { useRef, useState } from "react";
 
 export interface CallFormData {
   customerName: string;
@@ -9,6 +10,7 @@ export interface CallFormData {
   callbackTime: string;
   assignedTo: string;
   note: string;
+  productsPurchased?: string;
 }
 
 interface CallLogFormProps {
@@ -34,17 +36,24 @@ export default function CallLogForm({
   isSaving = false,
   saveSucceeded = false,
 }: CallLogFormProps) {
+  const revenueRef = useRef<HTMLInputElement | null>(null);
+  const callbackDateRef = useRef<HTMLInputElement | null>(null);
+  const noteRef = useRef<HTMLTextAreaElement | null>(null);
+  const [inlineError, setInlineError] = useState<string | null>(null);
+
   const isCallbackStatus = formData.callStatus === "Hẹn gọi lại";
   const showsRevenue = formData.callStatus === "Chốt đơn" || formData.callStatus === "Upsell";
   const isOutcomeSelected = formData.callStatus && formData.callStatus !== "Mới";
+  const showsProducts = formData.callStatus === "Chốt đơn" || formData.callStatus === "Upsell";
 
   const attemptedSubmit = (formData as unknown as { __attemptedSubmit?: boolean }).__attemptedSubmit === true;
 
   const outcomeError = attemptedSubmit && !isOutcomeSelected;
-  const callbackError = attemptedSubmit && isCallbackStatus && (!formData.callbackDate || !formData.callbackTime);
-  const noteError = attemptedSubmit && !formData.note.trim();
+  const callbackError = attemptedSubmit && isCallbackStatus && !formData.callbackDate;
+  const noteRequired = formData.callStatus === "Từ chối" || formData.callStatus === "Chốt đơn" || formData.callStatus === "Upsell";
+  const noteError = attemptedSubmit && noteRequired && !formData.note.trim();
   const revenueValue = Number((formData.revenue || "0").replace(/\./g, ""));
-  const revenueError = attemptedSubmit && showsRevenue && (formData.revenue.trim() === "" || revenueValue < 0);
+  const revenueError = attemptedSubmit && showsRevenue && (formData.revenue.trim() === "" || revenueValue <= 0);
 
   const inputClasses = `mt-1 block w-full h-11 px-3 rounded-2xl border bg-white/20 text-sm shadow-sm backdrop-blur-2xl transition focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50 ${
     isDark ? "border-white/10 text-white placeholder-slate-400" : "border-white/20 text-slate-900 placeholder-slate-500"
@@ -55,28 +64,45 @@ export default function CallLogForm({
   const validateAndSubmit = () => {
     const validOutcomes = ["Chốt đơn", "Từ chối", "Upsell", "Hẹn gọi lại"] as const;
 
+    setInlineError(null);
+
     setFormData({
       ...formData,
       __attemptedSubmit: true as unknown as never,
     } as unknown as CallFormData);
 
     if (!validOutcomes.includes(formData.callStatus as (typeof validOutcomes)[number])) {
-      onValidationError?.("Vui lòng chọn Kết quả cuộc gọi trước khi lưu.");
+      const message = "Vui lòng chọn Kết quả cuộc gọi trước khi lưu.";
+      setInlineError(message);
+      onValidationError?.(message);
       return;
     }
 
-    if (!formData.note.trim()) {
-      onValidationError?.("Vui lòng nhập Ghi chú trước khi lưu.");
-      return;
+    if (showsRevenue) {
+      if (formData.revenue.trim() === "" || revenueValue <= 0) {
+        const message = "Vui lòng nhập Doanh thu > 0 cho Success/UpSale.";
+        setInlineError(message);
+        onValidationError?.(message);
+        setTimeout(() => revenueRef.current?.focus(), 0);
+        return;
+      }
     }
 
-    if (showsRevenue && (formData.revenue.trim() === "" || revenueValue < 0)) {
-      onValidationError?.("Vui lòng nhập Doanh thu hợp lệ cho Success/UpSale.");
-      return;
+    if (noteRequired) {
+      if (!formData.note.trim()) {
+        const message = "Vui lòng nhập Ghi chú trước khi lưu.";
+        setInlineError(message);
+        onValidationError?.(message);
+        setTimeout(() => noteRef.current?.focus(), 0);
+        return;
+      }
     }
 
-    if (isCallbackStatus && (!formData.callbackDate || !formData.callbackTime)) {
-      onValidationError?.("Vui lòng chọn đầy đủ ngày và giờ hẹn gọi lại.");
+    if (isCallbackStatus && !formData.callbackDate) {
+      const message = "Vui lòng chọn ngày hẹn gọi lại.";
+      setInlineError(message);
+      onValidationError?.(message);
+      setTimeout(() => callbackDateRef.current?.focus(), 0);
       return;
     }
 
@@ -138,7 +164,8 @@ export default function CallLogForm({
                     ...formData,
                     callStatus: status.value,
                     revenue: status.value === "Từ chối" ? "0" : formData.revenue,
-                    callbackTime: status.value === "Hẹn gọi lại" ? formData.callbackTime : "",
+                    callbackTime: "",
+                    productsPurchased: status.value === "Chốt đơn" || status.value === "Upsell" ? (formData.productsPurchased ?? "") : "",
                   })
                 }
                 aria-pressed={selected}
@@ -155,6 +182,10 @@ export default function CallLogForm({
             );
           })}
         </div>
+
+        {attemptedSubmit && inlineError && (
+          <div className={`mt-2 text-xs font-semibold ${isDark ? "text-rose-200" : "text-rose-700"}`}>{inlineError}</div>
+        )}
       </div>
 
       <div className="space-y-4">
@@ -174,6 +205,7 @@ export default function CallLogForm({
             <input
               type="text"
               inputMode="numeric"
+              ref={revenueRef}
               value={formData.revenue}
               onChange={(e) => setFormData({ ...formData, revenue: formatCurrency(e.target.value) })}
               className={`${inputClasses} ${revenueError ? inputErrorClasses : ""}`}
@@ -182,8 +214,26 @@ export default function CallLogForm({
           </div>
         )}
 
+        {!isCallbackStatus && showsProducts && (
+          <div>
+            <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>
+              Mặt hàng đã lấy
+            </label>
+            <textarea
+              rows={2}
+              value={formData.productsPurchased ?? ""}
+              onChange={(e) => setFormData({ ...formData, productsPurchased: e.target.value })}
+              className={`${inputClasses} min-h-16 resize-none py-2`}
+              placeholder="Nhập danh sách (cách nhau bằng dấu phẩy). VD: Thuốc A, Thuốc B..."
+            />
+            <div className={`mt-1 text-[11px] ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+              Gợi ý: nhập dạng danh sách, hệ thống sẽ hiển thị theo dạng tag và có nút xem thêm khi quá dài.
+            </div>
+          </div>
+        )}
+
         {isCallbackStatus && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <div>
               <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>
                 Ngày hẹn lại
@@ -193,23 +243,9 @@ export default function CallLogForm({
                 <CalendarClock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
                   type="date"
+                  ref={callbackDateRef}
                   value={formData.callbackDate}
                   onChange={(e) => setFormData({ ...formData, callbackDate: e.target.value })}
-                  className={`${inputClasses} pl-10 ${callbackError ? inputErrorClasses : ""}`}
-                />
-              </div>
-            </div>
-            <div>
-              <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>
-                Giờ hẹn lại
-                <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <Clock3 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <input
-                  type="time"
-                  value={formData.callbackTime}
-                  onChange={(e) => setFormData({ ...formData, callbackTime: e.target.value })}
                   className={`${inputClasses} pl-10 ${callbackError ? inputErrorClasses : ""}`}
                 />
               </div>
@@ -233,10 +269,11 @@ export default function CallLogForm({
         <div>
           <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>
             Ghi chú
-            <span className="text-rose-500">*</span>
+            {noteRequired && <span className="text-rose-500">*</span>}
           </label>
           <textarea
             rows={3}
+            ref={noteRef}
             value={formData.note}
             onChange={(e) => setFormData({ ...formData, note: e.target.value })}
             className={`${inputClasses} min-h-24 resize-none py-2 ${noteError ? inputErrorClasses : ""}`}

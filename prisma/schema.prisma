@@ -41,6 +41,7 @@ model Customer {
   customerCode String    @unique
   fullName     String
   name         String?
+  birthday     DateTime?
   phone        String
   area         String?
   address      String?
@@ -49,6 +50,8 @@ model Customer {
   partner      String?
   status       String    @default("Mới")
   callbackTime String?
+  lastOrderAt  DateTime?
+  productsPurchased String?
   totalRevenue Float     @default(0)
   assignedTo   String
   assignedToId String?
@@ -56,6 +59,7 @@ model Customer {
   medicalRep   String    @default("Admin")
   email        String?
   notes        String?
+  zaloConnected Boolean   @default(false)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   callLogs     CallLog[]
