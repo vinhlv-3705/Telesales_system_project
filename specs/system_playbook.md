@@ -235,6 +235,19 @@ Admin:
   - update tài liệu này
   - update `specs/requirements.md` nếu ảnh hưởng nghiệp vụ
 
+### 8.1 Next.js App Router: Suspense khi dùng search params
+
+Khi dùng các hook như `useSearchParams()` / `usePathname()` trong page App Router, cần đảm bảo code được bọc trong `Suspense`.
+
+Nếu không, build trên Vercel có thể fail ở bước prerender với lỗi:
+
+- `useSearchParams() should be wrapped in a suspense boundary`
+
+Pattern khuyến nghị:
+
+- Default export page: bọc `Suspense`.
+- Đưa phần dùng `useSearchParams()` vào component con (ví dụ `AdminCustomersInner`).
+
 ## 10. Quy trình Deploy (Git + Vercel + Supabase)
 
 ### 10.1 Nguyên tắc
