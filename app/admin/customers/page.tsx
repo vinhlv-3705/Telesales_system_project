@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, FileSpreadsheet, Filter, RefreshCw, Search, Trash2, Upload, UserPlus, Users, X } from "lucide-react";
 import { motion } from "framer-motion";
@@ -38,9 +38,15 @@ type ImportResult = {
   errors: Array<{ row: number; message: string; customerCode?: string }>;
 };
 
-export const dynamic = "force-dynamic";
-
 export default function AdminCustomersPage() {
+  return (
+    <Suspense fallback={null}>
+      <AdminCustomersInner />
+    </Suspense>
+  );
+}
+
+function AdminCustomersInner() {
   const searchParams = useSearchParams();
   const [isDark, setIsDark] = useState(false);
   const [now, setNow] = useState(0);
