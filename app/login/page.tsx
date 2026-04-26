@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, UserRound } from "lucide-react";
+import { Eye, EyeOff, Lock, UserRound } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function LoginPage() {
@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [form, setForm] = useState({ username: "", password: "" });
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     if (!form.username.trim() || !form.password.trim()) {
@@ -65,17 +66,26 @@ export default function LoginPage() {
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-60" />
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               placeholder="Mật khẩu"
-              className="ui-input pl-10 pr-3"
+              className="ui-input pl-10 pr-11"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   void handleLogin();
                 }
               }}
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword((s) => !s)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-9 w-9 rounded-2xl inline-flex items-center justify-center opacity-70 hover:opacity-100 transition"
+              title={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+              aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
           </div>
           {error && (
             <div className="rounded-2xl border px-3 py-2 text-sm font-semibold bg-rose-500/10 border-rose-500/20 text-rose-600">
