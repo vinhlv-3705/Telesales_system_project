@@ -1,5 +1,6 @@
-import { ArrowUpRight, CalendarClock, CheckCircle2, LoaderCircle, Plus, Repeat, Save, XCircle } from "lucide-react";
+import { ArrowUpRight, CalendarClock, CheckCircle2, LoaderCircle, Plus, Repeat, Save, XCircle, ListPlus, X } from "lucide-react";
 import { useRef, useState } from "react";
+import ProductPickerModal, { type MasterProduct } from "./ProductPickerModal";
 
 export interface CallFormData {
   customerName: string;
@@ -11,6 +12,7 @@ export interface CallFormData {
   assignedTo: string;
   note: string;
   productsPurchased?: string;
+  productIds?: string[];
 }
 
 interface CallLogFormProps {
@@ -40,6 +42,7 @@ export default function CallLogForm({
   const callbackDateRef = useRef<HTMLInputElement | null>(null);
   const noteRef = useRef<HTMLTextAreaElement | null>(null);
   const [inlineError, setInlineError] = useState<string | null>(null);
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
 
   const isCallbackStatus = formData.callStatus === "Hẹn gọi lại";
   const showsRevenue = formData.callStatus === "Chốt đơn" || formData.callStatus === "Upsell";
@@ -108,6 +111,15 @@ export default function CallLogForm({
 
     onSubmit();
   };
+
+  const selectedProductNames = (() => {
+    const raw = (formData.productsPurchased ?? "").trim();
+    if (!raw) return [] as string[];
+    return raw
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
+  })();
 
   const statusButtons = [
     {
@@ -205,6 +217,8 @@ export default function CallLogForm({
             <input
               type="text"
               inputMode="numeric"
+              autoComplete="off"
+              name="telesales_revenue"
               ref={revenueRef}
               value={formData.revenue}
               onChange={(e) => setFormData({ ...formData, revenue: formatCurrency(e.target.value) })}
@@ -219,16 +233,81 @@ export default function CallLogForm({
             <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>
               Mặt hàng đã lấy
             </label>
-            <textarea
-              rows={2}
-              value={formData.productsPurchased ?? ""}
-              onChange={(e) => setFormData({ ...formData, productsPurchased: e.target.value })}
-              className={`${inputClasses} min-h-16 resize-none py-2`}
-              placeholder="Nhập danh sách (cách nhau bằng dấu phẩy). VD: Thuốc A, Thuốc B..."
-            />
-            <div className={`mt-1 text-[11px] ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-              Gợi ý: nhập dạng danh sách, hệ thống sẽ hiển thị theo dạng tag và có nút xem thêm khi quá dài.
+            <div className="mt-2 flex items-start gap-2">
+              <div
+                className={`flex-1 min-h-11 rounded-2xl border bg-white/20 shadow-sm backdrop-blur-2xl px-3 py-2 ${
+                  isDark ? "border-white/10" : "border-white/20"
+                }`}
+              >
+                {selectedProductNames.length === 0 ? (
+                  <div className={`text-sm ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                    Chưa chọn mặt hàng
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedProductNames.map((name) => (
+                      <span
+                        key={name}
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                          isDark ? "bg-white/5 border-white/10 text-slate-100" : "bg-white/45 border-white/60 text-slate-800"
+                        }`}
+                      >
+                        <span className="max-w-55 truncate" title={name}>
+                          {name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = selectedProductNames.filter((x) => x !== name);
+                            setFormData({ ...formData, productsPurchased: next.join(", "), productIds: [] });
+                          }}
+                          className={`inline-flex items-center justify-center rounded-full h-5 w-5 border ${
+                            isDark ? "bg-white/5 border-white/10" : "bg-white/55 border-white/60"
+                          }`}
+                          aria-label="Bỏ mặt hàng"
+                          title="Bỏ"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setProductPickerOpen(true)}
+                className={`shrink-0 h-11 px-3 rounded-2xl border text-xs font-bold inline-flex items-center gap-2 transition ${
+                  isDark
+                    ? "bg-white/10 border-white/10 text-slate-100 hover:bg-white/15"
+                    : "bg-white/60 border-white/70 text-slate-700 hover:bg-white/80"
+                }`}
+                title="Chọn từ danh mục"
+              >
+                <ListPlus className="h-4 w-4" />
+                Chọn
+              </button>
             </div>
+            <div className={`mt-1 text-[11px] ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+              Gợi ý: chọn từ danh mục để tránh sai chính tả. Có thể chọn nhiều.
+            </div>
+
+            {productPickerOpen && (
+              <ProductPickerModal
+                open={productPickerOpen}
+                onClose={() => setProductPickerOpen(false)}
+                isDark={isDark}
+                selectedIds={[]}
+                onConfirm={(selected: MasterProduct[]) => {
+                  const names = selected.map((p) => p.name).filter(Boolean);
+                  setFormData({
+                    ...formData,
+                    productIds: selected.map((p) => p.id),
+                    productsPurchased: names.join(", "),
+                  });
+                }}
+              />
+            )}
           </div>
         )}
 
@@ -239,14 +318,28 @@ export default function CallLogForm({
                 Ngày hẹn lại
                 <span className="text-rose-500">*</span>
               </label>
-              <div className="relative">
+              <div
+                className="relative"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  const el = callbackDateRef.current;
+                  if (!el) return;
+                  const api = el as unknown as { showPicker?: () => void };
+                  if (typeof api.showPicker === 'function') {
+                    api.showPicker();
+                    return;
+                  }
+                  el.focus();
+                  el.click();
+                }}
+              >
                 <CalendarClock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
                   type="date"
                   ref={callbackDateRef}
                   value={formData.callbackDate}
                   onChange={(e) => setFormData({ ...formData, callbackDate: e.target.value })}
-                  className={`${inputClasses} pl-10 ${callbackError ? inputErrorClasses : ""}`}
+                  className={`${inputClasses} pl-10 ${callbackError ? inputErrorClasses : ""} cursor-pointer`}
                 />
               </div>
             </div>

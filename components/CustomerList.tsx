@@ -16,6 +16,7 @@ export interface CustomerCallLog {
   callbackTime?: string;
   note: string;
   birthday?: string;
+  contractSignedAt?: string;
   lastOrderAt?: string;
   productsPurchased?: string;
   timestamp?: string;
@@ -37,7 +38,7 @@ export default function CustomerList({ customers, onCall, activeCustomerId, isDa
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
 
-  const ITEM_HEIGHT = 180;
+  const ITEM_HEIGHT = 148;
   const OVERSCAN = 6;
 
   useEffect(() => {

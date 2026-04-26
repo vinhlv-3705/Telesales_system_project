@@ -137,13 +137,13 @@ export default function AdminDashboardPage() {
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="ui-input"
+              className="ui-input cursor-pointer"
             />
             <input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="ui-input"
+              className="ui-input cursor-pointer"
             />
             <button
               type="button"

@@ -99,7 +99,7 @@ export default function CallInputForm({
             isDark
               ? 'bg-slate-800/50 border-slate-700/60 text-slate-100'
               : 'bg-white/50 border-white/60 text-slate-900'
-          } focus:ring-2 focus:ring-blue-400`}
+          } focus:ring-2 focus:ring-blue-400 cursor-pointer`}
         />
       </div>
 

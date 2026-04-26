@@ -20,6 +20,28 @@ const fromEnumStatus = (status: string) => {
 
 export async function GET(request: Request) {
   try {
+    type DbCallLog = {
+      id: string;
+      customerId: string;
+      customerName: string;
+      agentName: string;
+      callStatus: string;
+      revenue: number;
+      callbackDate: Date | null;
+      callbackTime: string | null;
+      productIds?: string[];
+      productsPurchased?: string | null;
+      note: string | null;
+      notes: string | null;
+      timestamp: Date;
+    };
+    type DbClient = {
+      callLog: {
+        findMany: (args: unknown) => Promise<DbCallLog[]>;
+      };
+    };
+    const db = prisma as unknown as DbClient;
+
     const { searchParams } = new URL(request.url);
     const customerId = searchParams.get("customerId");
 
@@ -27,7 +49,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: "customerId is required." }, { status: 400 });
     }
 
-    const logs = await prisma.callLog.findMany({
+    const logs = await db.callLog.findMany({
       where: { customerId },
       orderBy: { timestamp: "desc" },
       select: {
@@ -39,6 +61,7 @@ export async function GET(request: Request) {
         revenue: true,
         callbackDate: true,
         callbackTime: true,
+        productsPurchased: true,
         note: true,
         notes: true,
         timestamp: true,
@@ -55,6 +78,8 @@ export async function GET(request: Request) {
         revenue: item.revenue,
         callbackDate: item.callbackDate ? item.callbackDate.toISOString().slice(0, 10) : "",
         callbackTime: item.callbackTime ?? "",
+        productIds: Array.isArray(item.productIds) ? item.productIds : [],
+        productsPurchased: item.productsPurchased ?? "",
         notes: item.notes ?? item.note ?? "",
         timestamp: item.timestamp.toISOString(),
       }))
@@ -68,14 +93,30 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     type DbUser = { id: string };
+    type DbCreatedLog = {
+      id: string;
+      customerId: string;
+      customerName: string;
+      agentName: string;
+      callStatus: string;
+      revenue: number;
+      callbackDate: Date | null;
+      callbackTime: string | null;
+      productIds?: string[];
+      productsPurchased?: string | null;
+      note: string | null;
+      notes: string | null;
+      timestamp: Date;
+    };
     type DbClient = {
       user: { findUnique: (args: unknown) => Promise<DbUser | null> };
+      $transaction: <T>(fn: (tx: unknown) => Promise<T>) => Promise<T>;
     };
 
     const db = prisma as unknown as DbClient;
 
     const body = await request.json();
-    const { customerId, customerName, agentName, status, revenue, callbackDate, callbackTime, notes, productsPurchased } = body as {
+    const { customerId, customerName, agentName, status, revenue, callbackDate, callbackTime, notes, productsPurchased, productIds } = body as {
       customerId?: string;
       customerName?: string;
       agentName?: string;
@@ -85,6 +126,7 @@ export async function POST(request: Request) {
       callbackTime?: string;
       notes?: string;
       productsPurchased?: string;
+      productIds?: string[];
     };
 
     if (!customerId || !customerName || !agentName || !status || !notes?.trim()) {
@@ -95,17 +137,47 @@ export async function POST(request: Request) {
     const username = cookieStore.get("telesales_user")?.value;
     const agent = username ? await db.user.findUnique({ where: { username }, select: { id: true } }) : null;
 
-    const created = await prisma.$transaction(async (tx) => {
-      const newCallLog = await tx.callLog.create({
+    const created = await db.$transaction(async (tx) => {
+      const callLogModel = (tx as unknown as { callLog: { create: (args: unknown) => Promise<DbCreatedLog> } }).callLog;
+      const customerModel = (tx as unknown as { customer: { update: (args: unknown) => Promise<unknown> } }).customer;
+      const productModel = (tx as unknown as {
+        product: { findMany: (args: unknown) => Promise<Array<{ id: string; name: string }>> };
+      }).product;
+
+      const trimmedStatus = status.trim();
+      const canAttachProducts = trimmedStatus === "Chốt đơn" || trimmedStatus === "Upsell";
+      const normalizedProductIds = Array.isArray(productIds) ? productIds.filter((v) => typeof v === "string" && v.trim()).map((v) => v.trim()) : [];
+
+      const productsSnapshot = await (async () => {
+        if (!canAttachProducts) return { ids: [] as string[], snapshot: null as string | null };
+        if (normalizedProductIds.length === 0) {
+          const raw = typeof productsPurchased === "string" ? productsPurchased.trim() : "";
+          return { ids: [] as string[], snapshot: raw ? raw : null };
+        }
+        const dbProducts = await productModel.findMany({
+          where: { id: { in: normalizedProductIds } },
+          select: { id: true, name: true },
+        });
+        const byId = new Map(dbProducts.map((p) => [p.id, p.name] as const));
+        const orderedNames = normalizedProductIds.map((id) => byId.get(id)).filter(Boolean) as string[];
+        return {
+          ids: normalizedProductIds,
+          snapshot: orderedNames.length > 0 ? orderedNames.join(", ") : null,
+        };
+      })();
+
+      const newCallLog = await callLogModel.create({
         data: {
           customerId,
           customerName: customerName.trim(),
           agentId: agent?.id ?? null,
           agentName: agentName.trim(),
-          callStatus: toEnumStatus(status) as never,
+          callStatus: toEnumStatus(trimmedStatus) as never,
           revenue: Number(revenue || 0),
           callbackDate: callbackDate ? new Date(callbackDate) : null,
           callbackTime: callbackTime?.trim() || null,
+          productIds: productsSnapshot.ids,
+          productsPurchased: productsSnapshot.snapshot,
           note: notes.trim(),
           notes: notes.trim(),
           callAt: new Date(),
@@ -120,13 +192,15 @@ export async function POST(request: Request) {
           revenue: true,
           callbackDate: true,
           callbackTime: true,
+          productIds: true,
+          productsPurchased: true,
           note: true,
           notes: true,
           timestamp: true,
         },
       });
 
-      await tx.customer.update({
+      await customerModel.update({
         where: { id: customerId },
         data: {
           status: toEnumStatus(status.trim()),
@@ -152,6 +226,8 @@ export async function POST(request: Request) {
       revenue: created.revenue,
       callbackDate: created.callbackDate ? created.callbackDate.toISOString().slice(0, 10) : "",
       callbackTime: created.callbackTime ?? "",
+      productIds: Array.isArray(created.productIds) ? created.productIds : [],
+      productsPurchased: created.productsPurchased ?? "",
       notes: created.notes ?? created.note ?? "",
       timestamp: created.timestamp.toISOString(),
     });

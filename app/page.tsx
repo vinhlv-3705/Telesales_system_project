@@ -1,8 +1,8 @@
 ﻿'use client';
 
-import { useState, useEffect, useMemo, type CSSProperties } from 'react';
+import { useState, useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Sun, Moon, LogOut, Phone, Cake, Package, Tag, Copy } from 'lucide-react';
+import { Search, Sun, Moon, LogOut, Phone, Cake, Package, Tag, Copy, ChevronDown, Pin, X, Pencil, Check, CalendarDays } from 'lucide-react';
 import { motion } from 'framer-motion';
 import CallLogForm, { CallFormData } from '../components/CallLogForm';
 import CustomerList from '../components/CustomerList';
@@ -46,6 +46,7 @@ type CallHistoryItem = {
   callbackDate: string;
   callbackTime?: string;
   notes: string;
+  productsPurchased?: string;
   timestamp: string;
 };
 
@@ -129,7 +130,7 @@ export default function Dashboard() {
     phoneNumber: '',
     callStatus: '',
     revenue: '',
-    callbackDate: '',
+    callbackDate: new Date().toISOString().split('T')[0],
     callbackTime: '',
     assignedTo: '',
     note: '',
@@ -141,6 +142,8 @@ export default function Dashboard() {
   const [adminAssignedToId, setAdminAssignedToId] = useState<string>('');
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerCallLog | null>(null);
   const [insightTab, setInsightTab] = useState<'history' | 'stats'>('history');
+
+  const [resumeProcessedEditing, setResumeProcessedEditing] = useState(false);
   const [callLogHistory, setCallLogHistory] = useState<Record<string, CallHistoryItem[]>>({});
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -149,12 +152,192 @@ export default function Dashboard() {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [queueView, setQueueView] = useState<QueueView>('pending');
   const [processedFilter, setProcessedFilter] = useState<ProcessedFilter>('all');
+  const [selectedAreaKey, setSelectedAreaKey] = useState<string>('__ALL__');
+  const [areaDropdownOpen, setAreaDropdownOpen] = useState(false);
+  const [areaSearch, setAreaSearch] = useState('');
+  const [pinnedAreaKeys, setPinnedAreaKeys] = useState<string[]>(() => {
+    try {
+      if (typeof window === 'undefined') return [];
+      const raw = window.localStorage.getItem('telesales_pinned_areas');
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((v) => typeof v === 'string') as string[];
+    } catch {
+      return [];
+    }
+  });
+  const areaDropdownRef = useRef<HTMLDivElement | null>(null);
+  const contractSignedInputRef = useRef<HTMLInputElement | null>(null);
+  const birthdayInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!isMounted) return;
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
     localStorage.setItem('expense-tracker-theme', isDark ? 'dark' : 'light');
   }, [isDark, isMounted]);
+
+  useEffect(() => {
+    if (!isMounted) return;
+    try {
+      localStorage.setItem('telesales_pinned_areas', JSON.stringify(pinnedAreaKeys));
+    } catch {
+      // ignore
+    }
+  }, [isMounted, pinnedAreaKeys]);
+
+  useEffect(() => {
+    if (!areaDropdownOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (areaDropdownRef.current && areaDropdownRef.current.contains(target)) return;
+      setAreaDropdownOpen(false);
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [areaDropdownOpen]);
+
+  const locationKeyOf = (value: string) => {
+    return value
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ');
+  };
+
+  const provinceKeySet = useMemo(() => {
+    const provinces = [
+      'Hà Nội',
+      'Hồ Chí Minh',
+      'Đà Nẵng',
+      'Hải Phòng',
+      'Cần Thơ',
+      'An Giang',
+      'Bà Rịa - Vũng Tàu',
+      'Bắc Giang',
+      'Bắc Kạn',
+      'Bạc Liêu',
+      'Bắc Ninh',
+      'Bến Tre',
+      'Bình Định',
+      'Bình Dương',
+      'Bình Phước',
+      'Bình Thuận',
+      'Cà Mau',
+      'Cao Bằng',
+      'Đắk Lắk',
+      'Đắk Nông',
+      'Điện Biên',
+      'Đồng Nai',
+      'Đồng Tháp',
+      'Gia Lai',
+      'Hà Giang',
+      'Hà Nam',
+      'Hà Tĩnh',
+      'Hải Dương',
+      'Hậu Giang',
+      'Hòa Bình',
+      'Hưng Yên',
+      'Khánh Hòa',
+      'Kiên Giang',
+      'Kon Tum',
+      'Lai Châu',
+      'Lâm Đồng',
+      'Lạng Sơn',
+      'Lào Cai',
+      'Long An',
+      'Nam Định',
+      'Nghệ An',
+      'Ninh Bình',
+      'Ninh Thuận',
+      'Phú Thọ',
+      'Phú Yên',
+      'Quảng Bình',
+      'Quảng Nam',
+      'Quảng Ngãi',
+      'Quảng Ninh',
+      'Quảng Trị',
+      'Sóc Trăng',
+      'Sơn La',
+      'Tây Ninh',
+      'Thái Bình',
+      'Thái Nguyên',
+      'Thanh Hóa',
+      'Thừa Thiên Huế',
+      'Tiền Giang',
+      'Trà Vinh',
+      'Tuyên Quang',
+      'Vĩnh Long',
+      'Vĩnh Phúc',
+      'Yên Bái',
+    ];
+
+    const aliases: Array<[string, string]> = [
+      ['TP. Hồ Chí Minh', 'Hồ Chí Minh'],
+      ['TP Hồ Chí Minh', 'Hồ Chí Minh'],
+      ['TP.HCM', 'Hồ Chí Minh'],
+      ['HCM', 'Hồ Chí Minh'],
+      ['TP. Hà Nội', 'Hà Nội'],
+      ['TP Hà Nội', 'Hà Nội'],
+      ['HN', 'Hà Nội'],
+      ['Thành phố Hồ Chí Minh', 'Hồ Chí Minh'],
+      ['Thành phố Hà Nội', 'Hà Nội'],
+      ['TP. Hải Phòng', 'Hải Phòng'],
+      ['TP Hải Phòng', 'Hải Phòng'],
+      ['TP. Đà Nẵng', 'Đà Nẵng'],
+      ['TP Đà Nẵng', 'Đà Nẵng'],
+      ['Thừa Thiên-Huế', 'Thừa Thiên Huế'],
+    ];
+
+    const set = new Set<string>();
+    for (const p of provinces) set.add(locationKeyOf(p));
+    for (const [alias] of aliases) set.add(locationKeyOf(alias));
+    return set;
+  }, []);
+
+  const canonicalProvinceLabel = (value: string) => {
+    const raw = (value || '').trim();
+    if (!raw) return '';
+    const key = locationKeyOf(raw);
+
+    if (key.includes('ho chi minh') || key.includes('tp.hcm') || key === 'hcm') return 'Hồ Chí Minh';
+    if (key === 'hn' || key.includes('ha noi')) return 'Hà Nội';
+    if (key.includes('da nang')) return 'Đà Nẵng';
+    if (key.includes('hai phong')) return 'Hải Phòng';
+    if (key.includes('can tho')) return 'Cần Thơ';
+    if (key.includes('thua thien') && key.includes('hue')) return 'Thừa Thiên Huế';
+    return raw;
+  };
+
+  const deriveProvinceOrCity = (log: CustomerCallLog) => {
+    const fromArea = (log.area || '').trim();
+    const address = (log.address || '').trim();
+
+    const addressLast = (() => {
+      if (!address) return '';
+      const parts = address
+        .split(',')
+        .map((p) => p.trim())
+        .filter(Boolean);
+      return parts[parts.length - 1] ?? '';
+    })();
+
+    const areaClean = fromArea
+      .replace(/^\s*(tx\.?|thi\s*xa|huy[eệ]n|qu[aậ]n|phu[oờ]ng|x[aã]|th[ịi]\s*tr[aấ]n|tp\.?|th[àa]nh\s*ph[oố]|t[ỉi]nh)\s+/i, '')
+      .trim();
+
+    const areaKey = locationKeyOf(areaClean || fromArea);
+    if (areaKey && provinceKeySet.has(areaKey)) return canonicalProvinceLabel(areaClean || fromArea);
+
+    const addrKey = locationKeyOf(addressLast);
+    if (addrKey && provinceKeySet.has(addrKey)) return canonicalProvinceLabel(addressLast);
+
+    const fallback = areaClean || addressLast || fromArea;
+    return fallback.trim() || 'Khác';
+  };
 
   useEffect(() => {
     const fetchMe = async () => {
@@ -173,14 +356,6 @@ export default function Dashboard() {
 
     void fetchMe();
   }, []);
-
-  useEffect(() => {
-    if (!isMounted) return;
-    setFormData((prev) => {
-      if ((prev.callbackDate || '').trim()) return prev;
-      return { ...prev, callbackDate: new Date().toISOString().split('T')[0] };
-    });
-  }, [isMounted]);
 
   useEffect(() => {
     const fetchAgents = async () => {
@@ -222,6 +397,7 @@ export default function Dashboard() {
         if (newCustomers.length > 0) {
           setActiveCustomerId((prev) => prev ?? newCustomers[0].id);
           setSelectedCustomer((prev) => prev ?? newCustomers[0]);
+          setResumeProcessedEditing(false);
         }
       } catch (error) {
         console.error('Error fetching customers from DB:', error);
@@ -277,7 +453,7 @@ export default function Dashboard() {
     }
   };
 
-  const filteredCallLogs = useMemo(() => {
+  const baseFilteredCallLogs = useMemo(() => {
     const now = new Date();
     const todayKey = now.toISOString().slice(0, 10);
     const weekStart = new Date(now);
@@ -340,27 +516,132 @@ export default function Dashboard() {
 
     if (queueView !== 'callback') return filtered;
     return [...filtered].sort((a, b) => {
-      const aTime = new Date(`${a.callbackDate || '9999-12-31'}T${a.callbackTime || '23:59'}`).getTime();
-      const bTime = new Date(`${b.callbackDate || '9999-12-31'}T${b.callbackTime || '23:59'}`).getTime();
+      const aTime = new Date(`${a.callbackDate || '9999-12-31'}T${(a.callbackTime || '').trim() ? a.callbackTime : '23:59'}`).getTime();
+      const bTime = new Date(`${b.callbackDate || '9999-12-31'}T${(b.callbackTime || '').trim() ? b.callbackTime : '23:59'}`).getTime();
       return aTime - bTime;
     });
   }, [callLogs, processedFilter, searchTerm, queueView]);
 
-  const countNew = useMemo(() => callLogs.filter((log) => log.callStatus === 'Mới').length, [callLogs]);
+  const searchFilteredCallLogs = useMemo(() => {
+    const searchKey = searchTerm.trim().toLowerCase();
+    if (!searchKey) return callLogs;
+    return callLogs.filter((log) => {
+      const haystack = [
+        log.customerCode,
+        log.customerName,
+        log.phoneNumber,
+        log.address,
+        log.area,
+        log.groupCode,
+        log.partner,
+        log.note,
+      ]
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(searchKey);
+    });
+  }, [callLogs, searchTerm]);
+
+  const allAreaFacetIndex = useMemo(() => {
+    const map = new Map<string, { key: string; label: string }>();
+    for (const log of searchFilteredCallLogs) {
+      const label = deriveProvinceOrCity(log);
+      const key = label.toLowerCase();
+      if (!map.has(key)) {
+        map.set(key, { key, label });
+      }
+    }
+    return map;
+  }, [deriveProvinceOrCity, searchFilteredCallLogs]);
+
+  const areaCountsForCurrentView = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const log of baseFilteredCallLogs) {
+      const key = deriveProvinceOrCity(log).toLowerCase();
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return map;
+  }, [baseFilteredCallLogs, deriveProvinceOrCity]);
+
+  const areaFacets = useMemo(() => {
+    const facets = Array.from(allAreaFacetIndex.values()).map(({ key, label }) => ({
+      key,
+      label,
+      count: areaCountsForCurrentView.get(key) ?? 0,
+    }));
+
+    return facets.sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return a.label.localeCompare(b.label, 'vi');
+    });
+  }, [allAreaFacetIndex, areaCountsForCurrentView]);
+
+  const selectedAreaLabel = useMemo(() => {
+    if (selectedAreaKey === '__ALL__') return 'Tất cả khu vực';
+    return areaFacets.find((facet) => facet.key === selectedAreaKey)?.label ?? selectedAreaKey;
+  }, [areaFacets, selectedAreaKey]);
+
+  const pinnedAreas = useMemo(() => {
+    const pinnedSet = new Set(pinnedAreaKeys);
+    const pinnedFromFacets = areaFacets.filter((facet) => pinnedSet.has(facet.key));
+    const missingPinned = pinnedAreaKeys
+      .filter((key) => pinnedSet.has(key) && !pinnedFromFacets.some((facet) => facet.key === key))
+      .map((key) => ({ key, label: key, count: 0 }));
+
+    return [...pinnedFromFacets, ...missingPinned].sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return a.label.localeCompare(b.label, 'vi');
+    });
+  }, [areaFacets, pinnedAreaKeys]);
+
+  const areaOptions = useMemo(() => {
+    const keyword = areaSearch.trim().toLowerCase();
+    const options = keyword
+      ? areaFacets.filter((facet) => facet.label.toLowerCase().includes(keyword))
+      : areaFacets;
+    return options;
+  }, [areaFacets, areaSearch]);
+
+  const togglePinArea = (key: string) => {
+    setPinnedAreaKeys((prev) => {
+      if (prev.includes(key)) return prev.filter((v) => v !== key);
+      return [key, ...prev];
+    });
+  };
+
+  const filteredCallLogs = useMemo(() => {
+    if (selectedAreaKey === '__ALL__') return baseFilteredCallLogs;
+    return baseFilteredCallLogs.filter((log) => {
+      const label = deriveProvinceOrCity(log);
+      return label.toLowerCase() === selectedAreaKey;
+    });
+  }, [baseFilteredCallLogs, deriveProvinceOrCity, selectedAreaKey]);
+
+  const scopedLogsForCounts = useMemo(() => {
+    const areaKey = selectedAreaKey;
+
+    if (areaKey === '__ALL__') return searchFilteredCallLogs;
+    return searchFilteredCallLogs.filter((log) => deriveProvinceOrCity(log).toLowerCase() === areaKey);
+  }, [deriveProvinceOrCity, searchFilteredCallLogs, selectedAreaKey]);
+
+  const countNew = useMemo(
+    () => scopedLogsForCounts.filter((log) => log.callStatus === 'Mới').length,
+    [scopedLogsForCounts]
+  );
 
   const countCallback = useMemo(
-    () => callLogs.filter((log) => log.callStatus === 'Hẹn gọi lại').length,
-    [callLogs]
+    () => scopedLogsForCounts.filter((log) => log.callStatus === 'Hẹn gọi lại').length,
+    [scopedLogsForCounts]
   );
 
   const countProcessed = useMemo(
-    () => callLogs.filter((log) => ['Chốt đơn', 'Từ chối', 'Upsell'].includes(log.callStatus)).length,
-    [callLogs]
+    () => scopedLogsForCounts.filter((log) => ['Chốt đơn', 'Từ chối', 'Upsell'].includes(log.callStatus)).length,
+    [scopedLogsForCounts]
   );
 
   const closedTodayCount = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
-    return callLogs.filter((log) => {
+    return scopedLogsForCounts.filter((log) => {
       if (log.callStatus !== 'Chốt đơn') return false;
       const raw = (log.lastOrderAt || '').trim();
       if (!raw) return false;
@@ -372,7 +653,7 @@ export default function Dashboard() {
         return false;
       }
     }).length;
-  }, [callLogs]);
+  }, [scopedLogsForCounts]);
 
   const saveCallLog = async () => {
     if (!activeCustomer) return;
@@ -393,8 +674,8 @@ export default function Dashboard() {
       setToastMessage('Vui lòng nhập Doanh thu hợp lệ cho Success/UpSale.');
       return;
     }
-    if (isCallbackStatus && (!formData.callbackDate || !formData.callbackTime)) {
-      setToastMessage('Vui lòng chọn đầy đủ ngày và giờ hẹn gọi lại.');
+    if (isCallbackStatus && !formData.callbackDate) {
+      setToastMessage('Vui lòng chọn ngày hẹn gọi lại.');
       return;
     }
 
@@ -411,9 +692,12 @@ export default function Dashboard() {
           status: formData.callStatus,
           revenue: Number((formData.revenue || '0').replace(/\./g, '')),
           callbackDate: formData.callbackDate,
-          callbackTime: formData.callbackTime,
+          callbackTime: '',
           notes: formData.note,
           productsPurchased: formData.productsPurchased,
+          productIds: Array.isArray((formData as unknown as { productIds?: string[] }).productIds)
+            ? (formData as unknown as { productIds?: string[] }).productIds
+            : [],
         }),
       });
 
@@ -444,7 +728,7 @@ export default function Dashboard() {
               ...item,
               callStatus: updatedStatus,
               callbackDate: formData.callbackDate || item.callbackDate,
-              callbackTime: formData.callStatus === 'Hẹn gọi lại' ? formData.callbackTime : '',
+              callbackTime: '',
               note: formData.note,
               lastOrderAt:
                 formData.callStatus === 'Chốt đơn' || formData.callStatus === 'Upsell'
@@ -465,6 +749,7 @@ export default function Dashboard() {
       setSaveSucceeded(true);
       setSelectedCustomer(nextCustomer);
       setActiveCustomerId(nextCustomer?.id ?? null);
+      setResumeProcessedEditing(false);
       setFormData({
         customerName: nextCustomer?.customerName ?? '',
         phoneNumber: nextCustomer?.phoneNumber ?? '',
@@ -475,6 +760,7 @@ export default function Dashboard() {
         assignedTo: loggedInUser,
         note: '',
         productsPurchased: nextCustomer?.productsPurchased ?? '',
+        productIds: [],
       });
     } catch (error) {
       console.error('Save call log error:', error);
@@ -545,6 +831,7 @@ export default function Dashboard() {
     setSelectedCustomer(customer);
     setInsightTab('history');
     setActiveCustomerId(customer.id);
+    setResumeProcessedEditing(false);
     setFormData((prev) => ({
       ...prev,
       customerName: customer.customerName,
@@ -579,6 +866,75 @@ export default function Dashboard() {
     if (Number.isNaN(d.getTime())) return '';
     return d.toLocaleDateString('vi-VN');
   }, [activeCustomer]);
+
+  const contractSignedLabel = useMemo(() => {
+    const value = (activeCustomer as unknown as { contractSignedAt?: string | null } | null)?.contractSignedAt;
+    if (!value) return '';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('vi-VN');
+  }, [activeCustomer]);
+
+  const [editingCustomerDates, setEditingCustomerDates] = useState(false);
+  const [draftBirthday, setDraftBirthday] = useState(() => {
+    const raw = (activeCustomer?.birthday || '').trim();
+    return raw ? raw.slice(0, 10) : '';
+  });
+  const [draftContractSignedAt, setDraftContractSignedAt] = useState(() => {
+    const raw = ((activeCustomer as unknown as { contractSignedAt?: string | null } | null)?.contractSignedAt || '').trim();
+    return raw ? raw.slice(0, 10) : '';
+  });
+  const [draftZaloConnected, setDraftZaloConnected] = useState<boolean>(() => Boolean(activeCustomer?.zaloConnected));
+
+  const saveCustomerDates = async () => {
+    if (!activeCustomer?.id) return;
+    try {
+      const response = await fetch('/api/customers/update-dates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId: activeCustomer.id,
+          birthday: draftBirthday,
+          contractSignedAt: draftContractSignedAt,
+          zaloConnected: draftZaloConnected,
+        }),
+      });
+      if (!response.ok) {
+        setToastMessage('Không thể cập nhật ngày ký hợp đồng / ngày sinh / Zalo.');
+        return;
+      }
+      const data = (await response.json()) as {
+        id: string;
+        birthday?: string;
+        contractSignedAt?: string;
+        zaloConnected?: boolean;
+      };
+      setCallLogs((prev) =>
+        prev.map((item) => {
+          if (item.id !== data.id) return item;
+          return {
+            ...item,
+            birthday: data.birthday ?? item.birthday,
+            contractSignedAt: data.contractSignedAt ?? (item as unknown as { contractSignedAt?: string }).contractSignedAt,
+            zaloConnected: typeof data.zaloConnected === 'boolean' ? data.zaloConnected : item.zaloConnected,
+          };
+        })
+      );
+      setSelectedCustomer((prev) => {
+        if (!prev || prev.id !== data.id) return prev;
+        return {
+          ...prev,
+          birthday: data.birthday ?? prev.birthday,
+          contractSignedAt: data.contractSignedAt ?? (prev as unknown as { contractSignedAt?: string }).contractSignedAt,
+          zaloConnected: typeof data.zaloConnected === 'boolean' ? data.zaloConnected : prev.zaloConnected,
+        } as unknown as CustomerCallLog;
+      });
+      setEditingCustomerDates(false);
+      setToastMessage('Đã cập nhật thông tin.');
+    } catch {
+      setToastMessage('Không thể cập nhật ngày ký hợp đồng / ngày sinh / Zalo.');
+    }
+  };
 
   const lastOrderLabel = useMemo(() => {
     const value = activeCustomer?.lastOrderAt;
@@ -712,6 +1068,209 @@ export default function Dashboard() {
                 />
               </div>
 
+              <div className="mb-2" ref={areaDropdownRef}>
+                <div
+                  className={`text-[11px] font-black uppercase tracking-[0.14em] mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}
+                >
+                  Khu vực
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setAreaDropdownOpen((v) => !v)}
+                  className={`w-full h-10 rounded-xl border px-3 text-sm font-bold inline-flex items-center justify-between gap-2 transition ${
+                    isDark
+                      ? 'bg-white/5 border-white/10 text-slate-100 hover:bg-white/10'
+                      : 'bg-white/55 border-white/65 text-slate-900 hover:bg-white/75'
+                  }`}
+                  aria-haspopup="listbox"
+                  aria-expanded={areaDropdownOpen}
+                >
+                  <span className="min-w-0 truncate">{selectedAreaLabel}</span>
+                  <span className="inline-flex items-center gap-2 shrink-0">
+                    <ChevronDown className={`h-4 w-4 transition ${areaDropdownOpen ? 'rotate-180' : ''}`} />
+                  </span>
+                </button>
+
+                {pinnedAreas.length > 0 && (
+                  <div className="mt-2 flex items-center gap-2 overflow-x-auto ui-scrollbar pb-1">
+                    {pinnedAreas.slice(0, 6).map((facet) => (
+                      <div
+                        key={`pin-${facet.key}`}
+                        onClick={() => setSelectedAreaKey(facet.key)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedAreaKey(facet.key);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        className={`shrink-0 h-8 rounded-full px-3 text-[12px] font-bold border transition-all inline-flex items-center gap-2 ${
+                          selectedAreaKey === facet.key
+                            ? isDark
+                              ? 'bg-white/15 border-white/25 text-slate-100'
+                              : 'bg-white/70 border-white/60 text-slate-900'
+                            : isDark
+                              ? 'bg-white/5 border-white/10 text-slate-200 hover:bg-white/10'
+                              : 'bg-white/30 border-white/20 text-slate-700 hover:bg-white/45'
+                        }`}
+                        title={facet.label}
+                      >
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPinnedAreaKeys((prev) => prev.filter((v) => v !== facet.key));
+                            setSelectedAreaKey((prev) => (prev === facet.key ? '__ALL__' : prev));
+                          }}
+                          className={`inline-flex items-center justify-center rounded-full h-6 w-6 border transition ${
+                            isDark
+                              ? 'bg-amber-500/15 border-amber-400/30 text-amber-200 hover:bg-amber-500/20'
+                              : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
+                          }`}
+                          aria-label="Bỏ ghim khu vực"
+                          title="Bỏ ghim"
+                        >
+                          <Pin className="h-3.5 w-3.5" />
+                        </button>
+                        <span className="max-w-36 truncate">{facet.label}</span>
+                        <span
+                          className={`inline-flex items-center justify-center min-w-6 h-5 px-1.5 rounded-full text-[11px] font-black border ${
+                            isDark ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-white/40 border-white/60 text-slate-700'
+                          }`}
+                          title="Số khách trong khu vực này"
+                        >
+                          {facet.count}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {areaDropdownOpen && (
+                  <div
+                    className={`relative mt-2 rounded-2xl border p-3 shadow-lg ${
+                      isDark
+                        ? 'bg-slate-900/95 border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.55)]'
+                        : 'bg-white/95 border-white/70 shadow-[0_20px_60px_rgba(15,23,42,0.15)]'
+                    }`}
+                    role="listbox"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <input
+                          value={areaSearch}
+                          onChange={(e) => setAreaSearch(e.target.value)}
+                          placeholder="Tìm khu vực..."
+                          className="ui-input pl-10 pr-9"
+                        />
+                        {areaSearch.trim() && (
+                          <button
+                            type="button"
+                            onClick={() => setAreaSearch('')}
+                            className={`absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg border inline-flex items-center justify-center transition ${
+                              isDark
+                                ? 'bg-white/5 border-white/10 hover:bg-white/10'
+                                : 'bg-white/40 border-white/60 hover:bg-white/65'
+                            }`}
+                            aria-label="Clear search"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-2 max-h-64 overflow-y-auto ui-scrollbar pr-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedAreaKey('__ALL__');
+                          setAreaDropdownOpen(false);
+                        }}
+                        className={`w-full rounded-xl px-3 py-2 text-sm font-bold border transition flex items-center justify-between gap-3 ${
+                          selectedAreaKey === '__ALL__'
+                            ? isDark
+                              ? 'bg-white/15 border-white/25 text-slate-100'
+                              : 'bg-slate-900/5 border-slate-200 text-slate-900'
+                            : isDark
+                              ? 'bg-white/5 border-white/10 text-slate-200 hover:bg-white/10'
+                              : 'bg-white/50 border-white/70 text-slate-700 hover:bg-white/70'
+                        }`}
+                      >
+                        <span className="truncate">Tất cả khu vực</span>
+                        <span className={`text-xs font-black ${isDark ? 'text-slate-300' : 'text-slate-500'}`}>
+                          {baseFilteredCallLogs.length}
+                        </span>
+                      </button>
+
+                      {areaOptions.length === 0 ? (
+                        <div className={`mt-2 text-sm px-2 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                          Không có khu vực phù hợp.
+                        </div>
+                      ) : (
+                        <div className="mt-2 space-y-1">
+                          {areaOptions.map((facet) => {
+                            const pinned = pinnedAreaKeys.includes(facet.key);
+                            const selected = selectedAreaKey === facet.key;
+                            return (
+                              <div
+                                key={facet.key}
+                                className={`w-full rounded-xl border px-3 py-2 transition flex items-center justify-between gap-3 ${
+                                  selected
+                                    ? isDark
+                                      ? 'bg-white/15 border-white/25'
+                                      : 'bg-slate-900/5 border-slate-200'
+                                    : isDark
+                                      ? 'bg-white/5 border-white/10 hover:bg-white/10'
+                                      : 'bg-white/50 border-white/70 hover:bg-white/70'
+                                }`}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedAreaKey(facet.key);
+                                    setAreaDropdownOpen(false);
+                                  }}
+                                  className="flex-1 min-w-0 text-left"
+                                >
+                                  <div className={`text-sm font-bold truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                                    {facet.label}
+                                  </div>
+                                  <div className={`text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                                    {facet.count} khách
+                                  </div>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => togglePinArea(facet.key)}
+                                  className={`h-9 w-9 rounded-xl border inline-flex items-center justify-center transition ${
+                                    pinned
+                                      ? isDark
+                                        ? 'bg-amber-500/15 border-amber-400/30 text-amber-200'
+                                        : 'bg-amber-50 border-amber-200 text-amber-700'
+                                      : isDark
+                                        ? 'bg-white/5 border-white/10 text-slate-200 hover:bg-white/10'
+                                        : 'bg-white/40 border-white/60 text-slate-700 hover:bg-white/65'
+                                  }`}
+                                  aria-label={pinned ? 'Unpin area' : 'Pin area'}
+                                  title={pinned ? 'Bỏ ghim' : 'Ghim khu vực'}
+                                >
+                                  <Pin className="h-4 w-4" />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {loggedInRole === 'ADMIN' && (
                 <div className="mb-2">
                   <select
@@ -732,7 +1291,10 @@ export default function Dashboard() {
               <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
-                  onClick={() => setQueueView('pending')}
+                  onClick={() => {
+                    setQueueView('pending');
+                    setResumeProcessedEditing(false);
+                  }}
                   className={`h-10 rounded-lg text-sm font-semibold border transition-all ${
                     queueView === 'pending'
                       ? 'bg-linear-to-r from-rose-600 to-red-500 text-white border-transparent shadow-[0_12px_30px_rgba(244,63,94,0.35)]'
@@ -759,7 +1321,10 @@ export default function Dashboard() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setQueueView('callback')}
+                  onClick={() => {
+                    setQueueView('callback');
+                    setResumeProcessedEditing(false);
+                  }}
                   className={`h-10 rounded-lg text-sm font-semibold border transition-all ${
                     queueView === 'callback'
                       ? 'bg-linear-to-r from-amber-600 to-orange-500 text-white border-transparent shadow-[0_12px_30px_rgba(245,158,11,0.35)]'
@@ -787,7 +1352,10 @@ export default function Dashboard() {
 
                 <button
                   type="button"
-                  onClick={() => setQueueView('processed')}
+                  onClick={() => {
+                    setQueueView('processed');
+                    setResumeProcessedEditing(false);
+                  }}
                   className={`h-10 rounded-lg text-sm font-semibold border transition-all flex items-center justify-center gap-2 ${
                     queueView === 'processed'
                       ? 'bg-linear-to-r from-emerald-600 to-green-500 text-white border-transparent shadow-[0_12px_30px_rgba(16,185,129,0.35)]'
@@ -899,76 +1467,227 @@ export default function Dashboard() {
               </p>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h2 className={`text-xl font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'} truncate`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className={`text-xs font-bold tracking-wide ${isDark ? 'text-sky-300' : 'text-blue-700'} truncate`}>
+                      {activeCustomer?.customerCode ?? '--'}
+                    </div>
+                  </div>
+
+                  <h2 className={`mt-1 text-xl font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'} truncate`}>
                     {activeCustomer?.customerName ?? 'No customer selected'}
                   </h2>
-                  <div className="mt-1 flex items-center gap-2 flex-wrap">
-                    <span className={`text-xs font-semibold ${isDark ? 'text-sky-300' : 'text-blue-700'}`}>
-                      {activeCustomer?.customerCode ?? '--'}
-                    </span>
+
+                  <div className="mt-2 flex items-start justify-between gap-2">
+                    <div className="grid gap-2 grid-cols-1 md:grid-cols-3 flex-1 min-w-0">
+                      <div
+                        className={`rounded-2xl border px-3 py-1.5 text-sm ${
+                          isDark ? 'bg-white/5 border-white/10' : 'bg-white/35 border-white/30'
+                        }`}
+                      >
+                        <div className={`text-[11px] font-bold tracking-wide ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          Ngày ký hợp đồng
+                        </div>
+                        <div className="mt-0.5 inline-flex items-center gap-2 min-w-0">
+                          <CalendarDays className={`h-4 w-4 ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`} />
+                          {!editingCustomerDates ? (
+                            <span className={`${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{contractSignedLabel || '--/--/----'}</span>
+                          ) : (
+                            <div
+                              className="relative w-32 max-w-full"
+                              onClick={() => {
+                                const el = contractSignedInputRef.current;
+                                if (!el) return;
+                                const api = el as unknown as { showPicker?: () => void };
+                                if (typeof api.showPicker === 'function') {
+                                  api.showPicker();
+                                  return;
+                                }
+                                el.focus();
+                                el.click();
+                              }}
+                            >
+                              <input
+                                type="date"
+                                ref={contractSignedInputRef}
+                                value={draftContractSignedAt}
+                                onChange={(e) => setDraftContractSignedAt(e.target.value)}
+                                className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                              />
+                              <div
+                                className={`pointer-events-none h-7 w-full rounded-xl px-2 text-xs font-semibold border inline-flex items-center ${
+                                  isDark
+                                    ? 'bg-slate-950/30 border-white/10 text-slate-100'
+                                    : 'bg-white/60 border-white/60 text-slate-900'
+                                }`}
+                              >
+                                {draftContractSignedAt
+                                  ? draftContractSignedAt.split('-').reverse().join('/')
+                                  : 'Chọn ngày'}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div
+                        className={`rounded-2xl border px-3 py-1.5 text-sm ${
+                          isDark ? 'bg-white/5 border-white/10' : 'bg-white/35 border-white/30'
+                        }`}
+                      >
+                        <div className={`text-[11px] font-bold tracking-wide ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          Ngày sinh
+                        </div>
+                        <div className="mt-0.5 inline-flex items-center gap-2 min-w-0">
+                          <Cake className={`h-4 w-4 ${isDark ? 'text-amber-300' : 'text-amber-700'}`} />
+                          {!editingCustomerDates ? (
+                            <span className={`${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{birthdayLabel || '--/--/----'}</span>
+                          ) : (
+                            <div
+                              className="relative w-32 max-w-full"
+                              onClick={() => {
+                                const el = birthdayInputRef.current;
+                                if (!el) return;
+                                const api = el as unknown as { showPicker?: () => void };
+                                if (typeof api.showPicker === 'function') {
+                                  api.showPicker();
+                                  return;
+                                }
+                                el.focus();
+                                el.click();
+                              }}
+                            >
+                              <input
+                                type="date"
+                                ref={birthdayInputRef}
+                                value={draftBirthday}
+                                onChange={(e) => setDraftBirthday(e.target.value)}
+                                className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                              />
+                              <div
+                                className={`pointer-events-none h-7 w-full rounded-xl px-2 text-xs font-semibold border inline-flex items-center ${
+                                  isDark
+                                    ? 'bg-slate-950/30 border-white/10 text-slate-100'
+                                    : 'bg-white/60 border-white/60 text-slate-900'
+                                }`}
+                              >
+                                {draftBirthday ? draftBirthday.split('-').reverse().join('/') : 'Chọn ngày'}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div
+                        className={`rounded-2xl border px-3 py-1.5 text-sm ${
+                          isDark ? 'bg-white/5 border-white/10' : 'bg-white/35 border-white/30'
+                        }`}
+                      >
+                        <div className={`text-[11px] font-bold tracking-wide ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                          Zalo
+                        </div>
+                        <div className="mt-0.5 inline-flex items-center gap-2 min-w-0">
+                          <ZaloIcon className="h-5 w-5" />
+                          {!editingCustomerDates ? (
+                            <span className={`${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{
+                              activeCustomer?.zaloConnected ? 'Đã kết nối' : 'Chưa kết nối'
+                            }</span>
+                          ) : (
+                            <select
+                              value={draftZaloConnected ? 'connected' : 'disconnected'}
+                              onChange={(e) => setDraftZaloConnected(e.target.value === 'connected')}
+                              className={`h-7 w-32 max-w-full rounded-xl px-2 text-xs font-semibold outline-none border ${
+                                isDark
+                                  ? 'bg-slate-950/30 border-white/10 text-slate-100'
+                                  : 'bg-white/60 border-white/60 text-slate-900'
+                              }`}
+                            >
+                              <option value="connected">Đã kết nối</option>
+                              <option value="disconnected">Chưa kết nối</option>
+                            </select>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {!editingCustomerDates ? (
+                      <button
+                        type="button"
+                        onClick={() => setEditingCustomerDates(true)}
+                        className={`shrink-0 inline-flex items-center justify-center rounded-xl border h-9 w-9 transition ${
+                          isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/35 border-white/50 hover:bg-white/55'
+                        }`}
+                        title="Sửa ngày ký hợp đồng / ngày sinh / Zalo"
+                        aria-label="Sửa ngày ký hợp đồng / ngày sinh / Zalo"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <div className="shrink-0 inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => void saveCustomerDates()}
+                          className={`inline-flex items-center justify-center rounded-xl border h-9 w-9 transition ${
+                            isDark
+                              ? 'bg-emerald-500/15 border-emerald-400/25 text-emerald-200 hover:bg-emerald-500/20'
+                              : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                          }`}
+                          title="Lưu"
+                          aria-label="Lưu"
+                        >
+                          <Check className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingCustomerDates(false)}
+                          className={`inline-flex items-center justify-center rounded-xl border h-9 w-9 transition ${
+                            isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/35 border-white/50 hover:bg-white/55'
+                          }`}
+                          title="Hủy"
+                          aria-label="Hủy"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="shrink-0 inline-flex flex-col items-end">
+                  <div
+                    className={`inline-flex flex-col items-end gap-1 rounded-xl border px-2.5 py-1 text-sm ${
+                      isDark ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-white/45 border-white/60 text-slate-700'
+                    }`}
+                  >
+                    <div className={`text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                      Đối tác: {activeCustomer?.partner ? activeCustomer.partner : '--'}
+                    </div>
+                    <div className="inline-flex items-center gap-1.5">
+                      <Phone className="h-4 w-4 mr-2" />
+                      <span className="font-semibold">{activeCustomer?.phoneNumber ?? '--'}</span>
+                      <button
+                        type="button"
+                        onClick={() => void copyToClipboard(activeCustomer?.phoneNumber ?? '', 'SĐT')}
+                        className={`ml-1 inline-flex items-center justify-center rounded-lg border h-7 w-7 transition ${
+                          isDark
+                            ? 'bg-white/5 border-white/10 hover:bg-white/10'
+                            : 'bg-white/35 border-white/50 hover:bg-white/55'
+                        }`}
+                        title="Copy số điện thoại"
+                        aria-label="Copy số điện thoại"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-2 flex items-center gap-2 flex-wrap justify-end">
                     <span
                       className={`ui-chip ${
-                        isDark
-                          ? 'bg-white/5 border-white/10 text-slate-200'
-                          : 'bg-white/45 border-white/60 text-slate-700'
+                        isDark ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-white/45 border-white/60 text-slate-700'
                       }`}
                       title="Trạng thái khách hàng"
                     >
                       Status: {activeCustomer?.callStatus ?? 'Mới'}
                     </span>
-                    <span
-                      className={`ui-chip ${
-                        activeCustomer?.zaloConnected
-                          ? isDark
-                            ? 'bg-emerald-500/10 border-emerald-400/25 text-emerald-200'
-                            : 'bg-emerald-50/80 border-emerald-200 text-emerald-700'
-                          : isDark
-                            ? 'bg-slate-800/40 border-slate-700/60 text-slate-300'
-                            : 'bg-white/35 border-white/60 text-slate-600'
-                      }`}
-                      title="Kết nối Zalo"
-                    >
-                      <span className="inline-flex items-center gap-1.5">
-                        <ZaloIcon className="h-6 w-6" />
-                        <span>{activeCustomer?.zaloConnected ? 'Đã kết nối' : 'Chưa kết nối'}</span>
-                      </span>
-                    </span>
-
-                    <span
-                      className={`ui-chip ${
-                        isDark
-                          ? 'bg-white/5 border-white/10 text-slate-200'
-                          : 'bg-white/45 border-white/60 text-slate-700'
-                      }`}
-                      title="Sinh nhật"
-                    >
-                      <span className="inline-flex items-center gap-1.5">
-                        <Cake className={`h-4 w-4 ${isDark ? 'text-amber-300' : 'text-amber-700'}`} />
-                        <span>{birthdayLabel || '--'}</span>
-                      </span>
-                    </span>
-                  </div>
-                </div>
-                <div className={`shrink-0 inline-flex flex-col items-end gap-1 rounded-xl border px-2.5 py-1 text-sm ${isDark ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-white/45 border-white/60 text-slate-700'}`}>
-                  <div className={`text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                    Đối tác: {activeCustomer?.partner ? activeCustomer.partner : '--'}
-                  </div>
-                  <div className="inline-flex items-center gap-1.5">
-                    <Phone className="h-4 w-4 mr-2" />
-                    <span className="font-semibold">{activeCustomer?.phoneNumber ?? '--'}</span>
-                    <button
-                      type="button"
-                      onClick={() => void copyToClipboard(activeCustomer?.phoneNumber ?? '', 'SĐT')}
-                      className={`ml-1 inline-flex items-center justify-center rounded-lg border h-7 w-7 transition ${
-                        isDark
-                          ? 'bg-white/5 border-white/10 hover:bg-white/10'
-                          : 'bg-white/35 border-white/50 hover:bg-white/55'
-                      }`}
-                      title="Copy số điện thoại"
-                      aria-label="Copy số điện thoại"
-                    >
-                      <Copy className="h-3.5 w-3.5" />
-                    </button>
                   </div>
                 </div>
               </div>
@@ -1098,6 +1817,7 @@ export default function Dashboard() {
                       <div className="text-sm mt-1"><span className="font-semibold">Người xử lý:</span> {item.agentName}</div>
                       <div className="text-sm"><span className="font-semibold">Kết quả:</span> {item.status}</div>
                       <div className="text-sm"><span className="font-semibold">Doanh thu:</span> {Number(item.revenue).toLocaleString('vi-VN')} VND</div>
+                      <div className="text-sm"><span className="font-semibold">Mặt hàng đã lấy:</span> {(item.productsPurchased || '').trim() ? item.productsPurchased : '--'}</div>
                       {item.callbackTime && (
                         <div className="text-sm"><span className="font-semibold">Giờ hẹn:</span> {item.callbackDate} {item.callbackTime}</div>
                       )}
@@ -1135,16 +1855,43 @@ export default function Dashboard() {
           <section className="h-full">
             <div className={`ui-card p-5 h-full overflow-y-auto ui-scrollbar ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
               <h3 className={`text-lg font-semibold mb-3 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>Call Interface</h3>
-              <CallLogForm
-                formData={formData}
-                setFormData={setFormData}
-                onSubmit={saveCallLog}
-                onValidationError={setToastMessage}
-                isDark={isDark}
-                compact
-                isSaving={isSaving}
-                saveSucceeded={saveSucceeded}
-              />
+              {queueView === 'processed' && !resumeProcessedEditing ? (
+                <div
+                  className={`rounded-2xl border p-4 ${
+                    isDark ? 'bg-white/5 border-white/10' : 'bg-white/35 border-white/30'
+                  }`}
+                >
+                  <div className={`text-sm ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                    Khách hàng ở tab <span className="font-bold">Đã xử lý</span>. Bạn có thể tiếp tục cập nhật kết quả nếu cần.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const currentStatus = (activeCustomer?.callStatus || 'Mới') as CallStatus;
+                      setFormData((prev) => ({ ...prev, callStatus: currentStatus }));
+                      setResumeProcessedEditing(true);
+                    }}
+                    className={`mt-3 w-full h-10 rounded-xl text-sm font-bold border transition ${
+                      isDark
+                        ? 'bg-white/10 border-white/15 text-slate-100 hover:bg-white/15'
+                        : 'bg-white/60 border-white/70 text-slate-800 hover:bg-white/80'
+                    }`}
+                  >
+                    Tiếp tục xử lý
+                  </button>
+                </div>
+              ) : (
+                <CallLogForm
+                  formData={formData}
+                  setFormData={setFormData}
+                  onSubmit={saveCallLog}
+                  onValidationError={setToastMessage}
+                  isDark={isDark}
+                  compact
+                  isSaving={isSaving}
+                  saveSucceeded={saveSucceeded}
+                />
+              )}
               {isSaving && (
                 <p className={`text-xs mt-2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Đang lưu nhật ký cuộc gọi...</p>
               )}
