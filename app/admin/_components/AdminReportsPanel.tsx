@@ -3,12 +3,27 @@
 import { useEffect, useMemo, useState } from "react";
 import { Download, Filter, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
+import {
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+} from "recharts";
 
 type AgentOption = { id: string; username: string };
 
 type StatsResponse = {
   totals: { totalCalls: number; totalRevenue: number };
-  perAgent: Array<{ agentId: string | null; agentName: string; totalCalls: number; totalRevenue: number }>;
+  perAgent: Array<{
+    agentId: string | null;
+    agentName: string;
+    totalCalls: number;
+    totalRevenue: number;
+    totalClosed?: number;
+    totalUpsell?: number;
+    totalRejected?: number;
+    totalCallback?: number;
+  }>;
 };
 
 type AdminCallLogItem = {
@@ -44,8 +59,13 @@ export default function AdminReportsPanel() {
   const [agentOptions, setAgentOptions] = useState<AgentOption[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
   const [agentNameFilter, setAgentNameFilter] = useState<string>("");
-  const [dateFrom, setDateFrom] = useState<string>(new Date().toISOString().slice(0, 10));
-  const [dateTo, setDateTo] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [dateFrom, setDateFrom] = useState<string>(() => {
+    const now = new Date();
+    const from = new Date(now);
+    from.setMonth(from.getMonth() - 1);
+    return from.toISOString().slice(0, 10);
+  });
+  const [dateTo, setDateTo] = useState<string>(() => new Date().toISOString().slice(0, 10));
 
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [logs, setLogs] = useState<AdminCallLogItem[]>([]);
@@ -77,12 +97,22 @@ export default function AdminReportsPanel() {
     return qs ? `?${qs}` : "";
   }, [dateFrom, dateTo, selectedAgentId, agentNameFilter]);
 
+  const statsQueryString = useMemo(() => {
+    const params = new URLSearchParams();
+    if (dateFrom) params.set("dateFrom", dateFrom);
+    if (dateTo) params.set("dateTo", dateTo);
+    if (selectedAgentId) params.set("agentId", selectedAgentId);
+    if (agentNameFilter.trim()) params.set("agentName", agentNameFilter.trim());
+    const qs = params.toString();
+    return qs ? `?${qs}` : "";
+  }, [dateFrom, dateTo, selectedAgentId, agentNameFilter]);
+
   const fetchAll = async () => {
     setLoading(true);
     setError(null);
     try {
       const [statsRes, logsRes] = await Promise.all([
-        fetch(`/api/admin/stats?date=${encodeURIComponent(dateFrom)}`, { cache: "no-store" }),
+        fetch(`/api/admin/stats${statsQueryString}`, { cache: "no-store" }),
         fetch(`/api/admin/call-logs${queryString}`, { cache: "no-store" }),
       ]);
 
@@ -110,7 +140,43 @@ export default function AdminReportsPanel() {
     }, 0);
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryString]);
+  }, [queryString, statsQueryString]);
+
+  const perAgentRows = useMemo(() => {
+    return [...(stats?.perAgent ?? [])].sort((a, b) => Number(b.totalRevenue || 0) - Number(a.totalRevenue || 0));
+  }, [stats?.perAgent]);
+
+  const pieColors = useMemo(
+    () => [
+      "#38bdf8",
+      "#a78bfa",
+      "#34d399",
+      "#fbbf24",
+      "#fb7185",
+      "#22c55e",
+      "#60a5fa",
+      "#c084fc",
+      "#f97316",
+      "#2dd4bf",
+    ],
+    []
+  );
+
+  const pieData = useMemo(() => {
+    return perAgentRows
+      .filter((row) => Number(row.totalRevenue || 0) > 0)
+      .map((row) => ({ name: row.agentName, value: Number(row.totalRevenue || 0) }));
+  }, [perAgentRows]);
+
+  const pieTotal = useMemo(() => pieData.reduce((acc, cur) => acc + Number(cur.value || 0), 0), [pieData]);
+
+  const formatCompactVnd = (value: number) => {
+    const v = Number(value || 0);
+    if (v >= 1_000_000_000) return `${Math.round((v / 1_000_000_000) * 10) / 10}B`;
+    if (v >= 1_000_000) return `${Math.round((v / 1_000_000) * 10) / 10}M`;
+    if (v >= 1_000) return `${Math.round((v / 1_000) * 10) / 10}K`;
+    return `${Math.round(v)}`;
+  };
 
   const exportCsv = () => {
     const header = ["timestamp", "agentName", "customerName", "status", "revenue", "callbackDate", "callbackTime", "notes"];
@@ -257,36 +323,148 @@ export default function AdminReportsPanel() {
         </div>
 
         <div className="lg:col-span-4 mt-2">
-          <div className={`rounded-3xl border backdrop-blur-2xl overflow-hidden ${isDark ? "bg-white/5 border-white/10" : "bg-white/35 border-white/20"}`}>
-            <div className="p-4 border-b border-white/10">
-              <h2 className="text-lg font-extrabold">Tổng doanh thu theo nhân viên</h2>
+          <div className="grid grid-cols-1 xl:grid-cols-5 gap-3">
+            <div
+              className={`xl:col-span-3 rounded-3xl border backdrop-blur-2xl overflow-hidden ${
+                isDark ? "bg-white/5 border-white/10" : "bg-white/35 border-white/20"
+              }`}
+            >
+              <div className="p-4 border-b border-white/10">
+                <h2 className="text-lg font-extrabold">Tổng doanh thu theo nhân viên</h2>
+              </div>
+              <div className="p-4">
+                <table className="w-full text-sm table-fixed">
+                  <thead>
+                    <tr className="text-left opacity-70">
+                      <th className="py-2 w-[18%]">Nhân viên</th>
+                      <th className="py-2 w-[12%]">Tổng gọi</th>
+                      <th className="py-2 w-[14%]">Chốt</th>
+                      <th className="py-2 w-[14%]">Upsell</th>
+                      <th className="py-2 w-[14%]">Reject</th>
+                      <th className="py-2 w-[14%]">CallBack</th>
+                      <th className="py-2 w-[14%] text-right">Doanh thu</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {perAgentRows.map((row) => (
+                      <tr key={`${row.agentId ?? row.agentName}`} className="border-t border-white/10">
+                        <td className="py-2 font-semibold">{row.agentName}</td>
+                        <td className="py-2">{row.totalCalls}</td>
+                        <td className="py-2">{Number(row.totalClosed || 0)}</td>
+                        <td className="py-2">{Number(row.totalUpsell || 0)}</td>
+                        <td className="py-2">{Number(row.totalRejected || 0)}</td>
+                        <td className="py-2">{Number(row.totalCallback || 0)}</td>
+                        <td className="py-2 font-bold text-right">{Number(row.totalRevenue).toLocaleString("vi-VN")} VND</td>
+                      </tr>
+                    ))}
+                    {perAgentRows.length === 0 && (
+                      <tr>
+                        <td className="py-3 opacity-70" colSpan={7}>
+                          Chưa có dữ liệu.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <div className="p-4 overflow-x-auto">
-              <table className="min-w-[700px] w-full text-sm">
-                <thead>
-                  <tr className="text-left opacity-70">
-                    <th className="py-2">Nhân viên</th>
-                    <th className="py-2">Tổng cuộc gọi</th>
-                    <th className="py-2">Tổng doanh thu</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(stats?.perAgent ?? []).map((row) => (
-                    <tr key={`${row.agentId ?? row.agentName}`} className="border-t border-white/10">
-                      <td className="py-2 font-semibold">{row.agentName}</td>
-                      <td className="py-2">{row.totalCalls}</td>
-                      <td className="py-2 font-bold">{Number(row.totalRevenue).toLocaleString("vi-VN")} VND</td>
-                    </tr>
-                  ))}
-                  {(stats?.perAgent ?? []).length === 0 && (
-                    <tr>
-                      <td className="py-3 opacity-70" colSpan={3}>
-                        Chưa có dữ liệu.
-                      </td>
-                    </tr>
+
+            <div
+              className={`xl:col-span-2 rounded-3xl border backdrop-blur-2xl overflow-hidden ${
+                isDark ? "bg-white/5 border-white/10" : "bg-white/35 border-white/20"
+              }`}
+            >
+              <div className="p-4 border-b border-white/10">
+                <h3 className="text-lg font-extrabold">Tỷ trọng doanh thu</h3>
+              </div>
+              <div className="p-4">
+                <div className="h-96">
+                  {pieData.length === 0 ? (
+                    <div className="text-sm opacity-70">Chưa có dữ liệu doanh thu để vẽ biểu đồ.</div>
+                  ) : (
+                    <div className="grid grid-cols-1">
+                      <div
+                        className={`h-80 rounded-2xl border relative overflow-hidden ${
+                          isDark ? "border-white/10 bg-white/5" : "border-white/20 bg-white/30"
+                        }`}
+                      >
+                        <div
+                          className="absolute inset-0 opacity-60"
+                          style={{
+                            background:
+                              "radial-gradient(circle at 50% 45%, rgba(56, 189, 248, 0.22), transparent 55%), radial-gradient(circle at 30% 70%, rgba(167, 139, 250, 0.18), transparent 60%)",
+                          }}
+                        />
+                        <div className="absolute inset-0 p-2">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={pieData}
+                                dataKey="value"
+                                nameKey="name"
+                                innerRadius={70}
+                                outerRadius={132}
+                                paddingAngle={2}
+                                stroke={isDark ? "rgba(255,255,255,0.14)" : "rgba(15,23,42,0.10)"}
+                                strokeWidth={1}
+                                labelLine={false}
+                                label={(props: unknown) => {
+                                  const p = props as {
+                                    cx: number;
+                                    cy: number;
+                                    midAngle: number;
+                                    innerRadius: number;
+                                    outerRadius: number;
+                                    percent: number;
+                                    value: number;
+                                    index: number;
+                                  };
+                                  const RADIAN = Math.PI / 180;
+                                  const radius = (Number(p.innerRadius || 0) + Number(p.outerRadius || 0)) / 2;
+                                  const x = p.cx + radius * Math.cos(-p.midAngle * RADIAN);
+                                  const y = p.cy + radius * Math.sin(-p.midAngle * RADIAN);
+                                  const percent = Math.round((p.percent || 0) * 1000) / 10;
+                                  if (!Number.isFinite(percent) || percent <= 0) return null;
+                                  const valueLabel = formatCompactVnd(Number(p.value || 0));
+                                  const color = pieColors[(p.index ?? 0) % pieColors.length];
+                                  const name = pieData[p.index ?? 0]?.name ?? "";
+                                  return (
+                                    <text
+                                      x={x}
+                                      y={y}
+                                      textAnchor="middle"
+                                      dominantBaseline="central"
+                                      fill={color}
+                                      stroke={isDark ? "rgba(2,6,23,0.55)" : "rgba(255,255,255,0.75)"}
+                                      strokeWidth={3}
+                                      paintOrder="stroke"
+                                      fontSize={12}
+                                      fontWeight={900}
+                                    >
+                                      {`${name}: ${valueLabel} (${percent}%)`}
+                                    </text>
+                                  );
+                                }}
+                              >
+                                {pieData.map((_, index) => (
+                                  <Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
+                                ))}
+                              </Pie>
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+
+                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
+                          <div className="text-[11px] font-bold opacity-70">Tổng</div>
+                          <div className="text-sm font-black tracking-tight">
+                            {pieTotal.toLocaleString("vi-VN")} VND
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   )}
-                </tbody>
-              </table>
+                </div>
+              </div>
             </div>
           </div>
         </div>

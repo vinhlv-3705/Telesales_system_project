@@ -67,12 +67,19 @@ export async function GET(request: Request) {
 
     const q = (searchParams.get("q") || "").trim();
     const assignedToId = (searchParams.get("assignedToId") || "").trim();
+    const assigned = (searchParams.get("assigned") || "").trim();
     const status = (searchParams.get("status") || "").trim();
     const area = (searchParams.get("area") || "").trim();
 
     const where: Record<string, unknown> = {};
 
-    if (assignedToId) where.assignedToId = assignedToId;
+    if (assigned === "master") {
+      where.assignedToId = null;
+    } else if (assigned === "assigned") {
+      where.assignedToId = { not: null };
+    }
+
+    if (assignedToId && assigned !== "master") where.assignedToId = assignedToId;
 
     if (status) {
       const enumMap: Record<string, string> = {

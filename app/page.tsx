@@ -282,7 +282,11 @@ export default function Dashboard() {
     const todayKey = now.toISOString().slice(0, 10);
     const weekStart = new Date(now);
     weekStart.setHours(0, 0, 0, 0);
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    // Week is calculated as Monday..Sunday (vi-VN common expectation)
+    // JS getDay(): Sunday=0, Monday=1, ... Saturday=6
+    const dayOfWeek = weekStart.getDay();
+    const daysSinceMonday = (dayOfWeek + 6) % 7;
+    weekStart.setDate(weekStart.getDate() - daysSinceMonday);
     const weekStartEpoch = weekStart.getTime();
 
     const filtered = callLogs.filter((log) => {

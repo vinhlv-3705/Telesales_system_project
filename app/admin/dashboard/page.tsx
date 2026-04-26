@@ -40,7 +40,13 @@ export default function AdminDashboardPage() {
     const timeout = setTimeout(() => setIsDark(resolved), 0);
     return () => clearTimeout(timeout);
   }, []);
-  const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [dateFrom, setDateFrom] = useState<string>(() => {
+    const now = new Date();
+    const from = new Date(now);
+    from.setMonth(from.getMonth() - 1);
+    return from.toISOString().slice(0, 10);
+  });
+  const [dateTo, setDateTo] = useState<string>(() => new Date().toISOString().slice(0, 10));
 
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [logs, setLogs] = useState<AdminCallLogItem[]>([]);
@@ -52,8 +58,11 @@ export default function AdminDashboardPage() {
     setError(null);
     try {
       const [statsRes, logsRes] = await Promise.all([
-        fetch(`/api/admin/stats?date=${encodeURIComponent(date)}`, { cache: "no-store" }),
-        fetch(`/api/admin/call-logs?dateFrom=${encodeURIComponent(date)}&dateTo=${encodeURIComponent(date)}`, { cache: "no-store" }),
+        fetch(`/api/admin/stats?dateFrom=${encodeURIComponent(dateFrom)}&dateTo=${encodeURIComponent(dateTo)}`, { cache: "no-store" }),
+        fetch(
+          `/api/admin/call-logs?dateFrom=${encodeURIComponent(dateFrom)}&dateTo=${encodeURIComponent(dateTo)}`,
+          { cache: "no-store" }
+        ),
       ]);
 
       if (!statsRes.ok) {
@@ -72,7 +81,7 @@ export default function AdminDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [date]);
+  }, [dateFrom, dateTo]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -126,8 +135,14 @@ export default function AdminDashboardPage() {
           <div className="flex items-center gap-2">
             <input
               type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="ui-input"
+            />
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
               className="ui-input"
             />
             <button

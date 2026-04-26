@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Filter, RefreshCw, Search, Trash2, UserPlus, Users, X } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { ChevronLeft, ChevronRight, FileSpreadsheet, Filter, RefreshCw, Search, Trash2, Upload, UserPlus, Users, X } from "lucide-react";
 import { motion } from "framer-motion";
 
 type CustomerRow = {
@@ -27,7 +28,18 @@ type CustomersResponse = {
 
 type Agent = { id: string; username: string };
 
+type CustomerView = "assigned" | "master" | "all";
+
+type ImportResult = {
+  created: number;
+  updated: number;
+  skipped: number;
+  invalid: number;
+  errors: Array<{ row: number; message: string; customerCode?: string }>;
+};
+
 export default function AdminCustomersPage() {
+  const searchParams = useSearchParams();
   const [isDark, setIsDark] = useState(false);
   const [now, setNow] = useState(0);
   useEffect(() => {
@@ -55,6 +67,17 @@ export default function AdminCustomersPage() {
   const [q, setQ] = useState<string>("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
+
+  const view = useMemo<CustomerView>(() => {
+    const assigned = (searchParams?.get("assigned") || "").trim();
+    if (assigned === "master" || assigned === "assigned" || assigned === "all") return assigned;
+    return "assigned";
+  }, [searchParams]);
+
+  const [importOpen, setImportOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
 
   const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
 
@@ -96,12 +119,46 @@ export default function AdminCustomersPage() {
     const params = new URLSearchParams();
     params.set("page", String(page));
     params.set("pageSize", String(pageSize));
+    if (view && view !== "all") params.set("assigned", view);
     if (q.trim()) params.set("q", q.trim());
-    if (selectedAgentId) params.set("assignedToId", selectedAgentId);
+    if (selectedAgentId && view !== "master") params.set("assignedToId", selectedAgentId);
     if (status) params.set("status", status);
     if (area.trim()) params.set("area", area.trim());
     return params.toString();
-  }, [area, page, pageSize, q, selectedAgentId, status]);
+  }, [area, page, pageSize, q, selectedAgentId, status, view]);
+
+  const submitImport = async () => {
+    if (!importFile) {
+      setError("Vui lòng chọn file Excel (.xlsx) trước khi import.");
+      return;
+    }
+
+    setImporting(true);
+    setError(null);
+    setImportResult(null);
+    try {
+      const form = new FormData();
+      form.append("file", importFile);
+
+      const res = await fetch("/api/admin/customers/import", {
+        method: "POST",
+        body: form,
+      });
+
+      if (!res.ok) {
+        const payload = (await res.json().catch(() => null)) as { message?: string } | null;
+        throw new Error(payload?.message || "Không thể import file.");
+      }
+
+      const payload = (await res.json()) as ImportResult;
+      setImportResult(payload);
+      await fetchCustomers();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Có lỗi xảy ra");
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const fetchCustomers = async () => {
     setLoading(true);
@@ -326,6 +383,25 @@ export default function AdminCustomersPage() {
               Thêm khách hàng
             </button>
 
+            {view === "master" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setImportResult(null);
+                  setImportFile(null);
+                  setImportOpen(true);
+                }}
+                className={`h-11 px-4 rounded-2xl border inline-flex items-center gap-2 text-sm font-bold transition ${
+                  isDark ? "bg-emerald-500/15 border-emerald-300/20 hover:bg-emerald-500/20" : "bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/15"
+                }`}
+                title="Import Excel vào Master"
+              >
+                <Upload className="h-4 w-4" />
+                Import Excel
+              </button>
+            )}
+
             <button
               type="button"
               onClick={fetchCustomers}
@@ -368,6 +444,7 @@ export default function AdminCustomersPage() {
                 setSelectedAgentId(e.target.value);
                 setPage(1);
               }}
+              disabled={view === "master"}
               className={`mt-1 h-11 w-full px-3 rounded-2xl border bg-white/20 backdrop-blur-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 ${
                 isDark ? "border-white/10 text-white" : "border-white/20 text-slate-900"
               }`}
@@ -515,21 +592,25 @@ export default function AdminCustomersPage() {
           <div className="p-4 overflow-auto ui-scrollbar max-h-[calc(100vh-420px)]">
             <table className="min-w-275 w-full text-sm">
               <thead>
-                <tr className={`text-left opacity-70 sticky top-0 z-10 ${isDark ? "bg-slate-900/40" : "bg-white/55"} backdrop-blur-2xl`}>
-                  <th className="py-2">
+                <tr
+                  className={`text-left sticky top-0 z-10 backdrop-blur-2xl border-b ${
+                    isDark ? "bg-slate-900/75 border-white/10" : "bg-white/85 border-slate-200"
+                  }`}
+                >
+                  <th className={`py-2 ${isDark ? "text-slate-100" : "text-slate-900"}`}>
                     <input
                       type="checkbox"
                       onChange={(e) => toggleAllOnPage(e.target.checked)}
                       checked={items.length > 0 && items.every((r) => selectedIds[r.id])}
                     />
                   </th>
-                  <th className="py-2">Mã KH</th>
-                  <th className="py-2">Tên KH</th>
-                  <th className="py-2">SĐT</th>
-                  <th className="py-2">Địa bàn</th>
-                  <th className="py-2">Trạng thái</th>
-                  <th className="py-2">Lần cuối tương tác</th>
-                  <th className="py-2">Assigned</th>
+                  <th className={`py-2 font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>Mã KH</th>
+                  <th className={`py-2 font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>Tên KH</th>
+                  <th className={`py-2 font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>SĐT</th>
+                  <th className={`py-2 font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>Địa bàn</th>
+                  <th className={`py-2 font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>Trạng thái</th>
+                  <th className={`py-2 font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>Lần cuối tương tác</th>
+                  <th className={`py-2 font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>Assigned</th>
                 </tr>
               </thead>
               <tbody>
@@ -798,6 +879,195 @@ export default function AdminCustomersPage() {
           </div>
         )}
       </motion.div>
+
+      {importOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => (importing ? null : setImportOpen(false))} />
+          <div
+            className={`relative w-full max-w-2xl rounded-3xl border shadow-2xl p-5 ${
+              isDark ? "bg-slate-900 border-white/10 text-slate-100" : "bg-white border-slate-200 text-slate-900"
+            }`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`h-10 w-10 rounded-2xl border flex items-center justify-center ${
+                      isDark ? "bg-white/5 border-white/10" : "bg-slate-50 border-slate-200"
+                    }`}
+                  >
+                    <FileSpreadsheet className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-lg font-black truncate">Import Master khách hàng</div>
+                    <div className={`text-xs font-semibold ${isDark ? "text-slate-300" : "text-slate-600"}`}>Excel (.xlsx)</div>
+                  </div>
+                </div>
+
+                <div className={`mt-3 text-sm ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+                  Trùng Mã KH sẽ update có chọn lọc (bỏ qua ô trống). Không thay đổi status/assigned.
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => (importing ? null : setImportOpen(false))}
+                className={`h-10 w-10 rounded-2xl border inline-flex items-center justify-center transition ${
+                  isDark ? "bg-white/5 border-white/10 hover:bg-white/10" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                }`}
+                title="Đóng"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className={`mt-4 rounded-3xl border p-4 ${isDark ? "border-white/10 bg-white/5" : "border-slate-200 bg-slate-50"}`}>
+              <input
+                id="import-xlsx"
+                type="file"
+                accept=".xlsx"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  setImportFile(f);
+                  setImportResult(null);
+                }}
+                className="hidden"
+              />
+
+              <label
+                htmlFor="import-xlsx"
+                className={`block rounded-2xl border border-dashed px-4 py-5 cursor-pointer transition ${
+                  isDark
+                    ? "border-white/15 hover:border-white/25 hover:bg-white/5"
+                    : "border-slate-300 hover:border-slate-400 hover:bg-white"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="min-w-0">
+                    <div className="text-sm font-black">Chọn file Excel để import</div>
+                    <div className={`mt-1 text-xs ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+                      Kéo thả hoặc click để chọn. Giới hạn 5MB, tối đa 10.000 dòng.
+                    </div>
+                  </div>
+                  <div
+                    className={`h-10 px-4 rounded-2xl border inline-flex items-center gap-2 text-sm font-bold transition ${
+                      isDark ? "bg-white/10 border-white/10 hover:bg-white/15" : "bg-white border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    <Upload className="h-4 w-4" />
+                    Chọn file
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  {importFile ? (
+                    <div className={`rounded-2xl border px-3 py-2 ${isDark ? "border-white/10 bg-slate-950/30" : "border-slate-200 bg-white"}`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-extrabold truncate" title={importFile.name}>
+                            {importFile.name}
+                          </div>
+                          <div className={`text-xs ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+                            {(importFile.size / 1024 / 1024).toFixed(2)} MB
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setImportFile(null);
+                            setImportResult(null);
+                          }}
+                          className={`h-9 px-3 rounded-xl border text-xs font-bold transition ${
+                            isDark ? "bg-white/5 border-white/10 hover:bg-white/10" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                          }`}
+                        >
+                          Bỏ chọn
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={`text-xs ${isDark ? "text-slate-300" : "text-slate-600"}`}>Chưa chọn file.</div>
+                  )}
+                </div>
+              </label>
+            </div>
+
+            {importResult && (
+              <div className={`mt-4 rounded-2xl border p-3 text-sm ${isDark ? "border-white/10 bg-white/5" : "border-slate-200 bg-slate-50"}`}>
+                <div className="font-extrabold">Kết quả</div>
+                <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div>
+                    <div className="text-xs opacity-70">Created</div>
+                    <div className="text-base font-black">{importResult.created}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs opacity-70">Updated</div>
+                    <div className="text-base font-black">{importResult.updated}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs opacity-70">Skipped</div>
+                    <div className="text-base font-black">{importResult.skipped}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs opacity-70">Invalid</div>
+                    <div className="text-base font-black">{importResult.invalid}</div>
+                  </div>
+                </div>
+
+                {importResult.errors.length > 0 && (
+                  <div className="mt-3">
+                    <div className="text-xs font-bold opacity-70">Lỗi (tối đa 30 dòng hiển thị)</div>
+                    <div className="mt-2 max-h-48 overflow-auto rounded-xl border border-white/10">
+                      {importResult.errors.slice(0, 30).map((err, idx) => (
+                        <div key={idx} className="px-3 py-2 border-b border-white/10 last:border-b-0">
+                          <div className="font-semibold">
+                            Dòng {err.row}
+                            {err.customerCode ? ` • ${err.customerCode}` : ""}
+                          </div>
+                          <div className="text-xs opacity-80">{err.message}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <a
+                href="/api/admin/customers/import-template"
+                className={`h-11 px-4 rounded-2xl border text-sm font-bold transition inline-flex items-center gap-2 ${
+                  isDark ? "bg-white/5 border-white/10 hover:bg-white/10" : "bg-white border-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                <Upload className="h-4 w-4" />
+                Tải template
+              </a>
+              <button
+                type="button"
+                onClick={() => (importing ? null : setImportOpen(false))}
+                className={`h-11 px-4 rounded-2xl border text-sm font-bold transition ${
+                  isDark ? "bg-white/5 border-white/10 hover:bg-white/10" : "bg-white border-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                Đóng
+              </button>
+              <button
+                type="button"
+                disabled={importing || !importFile}
+                onClick={submitImport}
+                className={`h-11 px-4 rounded-2xl border inline-flex items-center gap-2 text-sm font-bold transition disabled:opacity-60 ${
+                  isDark ? "bg-emerald-500/20 border-emerald-300/20 hover:bg-emerald-500/25" : "bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/15"
+                }`}
+              >
+                <Upload className={`h-4 w-4 ${importing ? "animate-pulse" : ""}`} />
+                {importing ? "Đang import..." : "Import"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
