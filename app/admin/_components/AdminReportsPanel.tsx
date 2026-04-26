@@ -256,7 +256,7 @@ export default function AdminReportsPanel() {
               onChange={(e) => setDateFrom(e.target.value)}
               className={`mt-1 h-11 w-full px-3 rounded-2xl border bg-white/20 backdrop-blur-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 ${
                 isDark ? "border-white/10 text-white" : "border-white/20 text-slate-900"
-              }`}
+              } cursor-pointer`}
             />
           </div>
           <div>
@@ -267,7 +267,7 @@ export default function AdminReportsPanel() {
               onChange={(e) => setDateTo(e.target.value)}
               className={`mt-1 h-11 w-full px-3 rounded-2xl border bg-white/20 backdrop-blur-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 ${
                 isDark ? "border-white/10 text-white" : "border-white/20 text-slate-900"
-              }`}
+              } cursor-pointer`}
             />
           </div>
           <div>

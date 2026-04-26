@@ -42,6 +42,7 @@ model Customer {
   fullName     String
   name         String?
   birthday     DateTime?
+  contractSignedAt DateTime?
   phone        String
   area         String?
   address      String?
@@ -83,6 +84,8 @@ model CallLog {
   revenue      Float      @default(0)
   callbackDate DateTime?
   callbackTime String?
+  productIds   String[]
+  productsPurchased String?
   note         String?
   notes        String?
   timestamp    DateTime   @default(now())
@@ -94,4 +97,29 @@ model CallLog {
   @@index([agentId])
   @@index([callStatus])
   @@index([callbackDate])
+}
+
+model ProductCategory {
+  id        String    @id @default(cuid())
+  name      String
+  sortOrder Int       @default(0)
+  products  Product[]
+
+  @@index([name])
+  @@map("product_category")
+}
+
+model Product {
+  id         String          @id @default(cuid())
+  name       String
+  code       String?
+  isActive   Boolean         @default(true)
+  categoryId String
+  category   ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@index([name])
+  @@index([categoryId])
+  @@map("product")
 }

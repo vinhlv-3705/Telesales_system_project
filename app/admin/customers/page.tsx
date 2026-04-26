@@ -805,7 +805,7 @@ function AdminCustomersInner() {
                     onChange={(e) => setCreateForm((p) => ({ ...p, birthday: e.target.value }))}
                     className={`mt-1 h-11 w-full px-3 rounded-2xl border bg-white/20 backdrop-blur-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 ${
                       isDark ? "border-white/10 text-white placeholder:text-slate-400" : "border-white/20 text-slate-900 placeholder:text-slate-500"
-                    }`}
+                    } cursor-pointer`}
                   />
                 </div>
 

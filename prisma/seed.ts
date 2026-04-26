@@ -61,12 +61,82 @@ async function main() {
     throw new Error("CSV file is empty or missing data rows.");
   }
 
+  const ensureProductMaster = async () => {
+    type DbClient = {
+      product: {
+        count: (args?: unknown) => Promise<number>;
+        createMany: (args: unknown) => Promise<unknown>;
+      };
+      productCategory: {
+        create: (args: unknown) => Promise<{ id: string }>;
+      };
+    };
+    const db = prisma as unknown as DbClient;
+
+    const existing = await db.product.count();
+    if (existing > 0) return;
+
+    const categories = [
+      {
+        name: "Kháng sinh",
+        sortOrder: 10,
+        products: [
+          { name: "Amoxicillin 500mg", code: "KS-AMOX-500" },
+          { name: "Azithromycin 500mg", code: "KS-AZIT-500" },
+          { name: "Cefixime 200mg", code: "KS-CEFI-200" },
+        ],
+      },
+      {
+        name: "Giảm đau - Hạ sốt",
+        sortOrder: 20,
+        products: [
+          { name: "Paracetamol 500mg", code: "GD-PARA-500" },
+          { name: "Ibuprofen 400mg", code: "GD-IBU-400" },
+        ],
+      },
+      {
+        name: "Vitamin",
+        sortOrder: 30,
+        products: [
+          { name: "Vitamin C 1000mg", code: "VT-C-1000" },
+          { name: "Vitamin D3 1000IU", code: "VT-D3-1000" },
+          { name: "Kẽm (Zinc) 15mg", code: "VT-ZINC-15" },
+        ],
+      },
+      {
+        name: "Tiêu hoá",
+        sortOrder: 40,
+        products: [
+          { name: "Men vi sinh", code: "TH-PROBIO" },
+          { name: "Omeprazole 20mg", code: "TH-OME-20" },
+        ],
+      },
+    ];
+
+    for (const cat of categories) {
+      const createdCategory = await db.productCategory.create({
+        data: { name: cat.name, sortOrder: cat.sortOrder },
+        select: { id: true },
+      });
+      await db.product.createMany({
+        data: cat.products.map((p) => ({
+          name: p.name,
+          code: p.code,
+          categoryId: createdCategory.id,
+          isActive: true,
+        })),
+      });
+    }
+  };
+
   // Clear existing data (avoid duplicates)
   await prisma.$transaction([
     prisma.callLog.deleteMany({}),
     prisma.customer.deleteMany({}),
     prisma.user.deleteMany({}),
   ]);
+
+  await ensureProductMaster();
 
   // Create users
   const admin = await prisma.user.create({

@@ -18,6 +18,7 @@ export async function GET(request: Request) {
       customerCode: string;
       fullName: string;
       birthday?: Date | null;
+      contractSignedAt?: Date | null;
       phone: string;
       address: string | null;
       area: string | null;
@@ -100,6 +101,7 @@ export async function GET(request: Request) {
             customerCode: true,
             fullName: true,
             birthday: true,
+            contractSignedAt: true,
             phone: true,
             address: true,
             area: true,
@@ -127,6 +129,7 @@ export async function GET(request: Request) {
             customerCode: true,
             fullName: true,
             birthday: true,
+            contractSignedAt: true,
             phone: true,
             address: true,
             area: true,
@@ -182,6 +185,7 @@ export async function GET(request: Request) {
         groupCode: customer.groupCode ?? "",
         partner: customer.partner ?? "",
         birthday: customer.birthday ? customer.birthday.toISOString() : "",
+        contractSignedAt: customer.contractSignedAt ? customer.contractSignedAt.toISOString() : "",
         lastOrderAt: customer.lastOrderAt ? customer.lastOrderAt.toISOString() : "",
         productsPurchased: customer.productsPurchased ?? "",
         zaloConnected: Boolean(customer.zaloConnected),
