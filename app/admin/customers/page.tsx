@@ -38,6 +38,8 @@ type ImportResult = {
   errors: Array<{ row: number; message: string; customerCode?: string }>;
 };
 
+export const dynamic = "force-dynamic";
+
 export default function AdminCustomersPage() {
   const searchParams = useSearchParams();
   const [isDark, setIsDark] = useState(false);
