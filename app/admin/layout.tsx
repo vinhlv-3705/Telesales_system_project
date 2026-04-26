@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ReactNode } from "react";
-import { BarChart3, LayoutDashboard, LineChart, Users, UserCog } from "lucide-react";
+import { BarChart3, ChevronDown, LayoutDashboard, LineChart, Users, UserCog } from "lucide-react";
 import AdminTopBar from "./_components/AdminTopBar";
 
 const NavLink = ({ href, title, icon }: { href: string; title: string; icon: ReactNode }) => {
@@ -46,7 +46,40 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 <NavLink href="/admin/dashboard" title="Tổng quan Dashboard" icon={<LayoutDashboard className="h-4 w-4" />} />
                 <ExternalNavLink href="/" title="Màn hình Telesales" icon={<LineChart className="h-4 w-4" />} />
                 <NavLink href="/admin/reports" title="Thống kê & Báo cáo" icon={<BarChart3 className="h-4 w-4" />} />
-                <NavLink href="/admin/customers" title="Quản lý Khách hàng" icon={<Users className="h-4 w-4" />} />
+                <details className="group">
+                  <summary className="list-none cursor-pointer">
+                    <div className="group flex items-center justify-between gap-3 rounded-2xl px-3 py-2.5 border border-[color:var(--surface-border)] bg-[color:var(--surface)] hover:bg-white/35 transition">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="text-sky-600/90 group-hover:text-sky-700 transition">
+                          <Users className="h-4 w-4" />
+                        </span>
+                        <span className="font-semibold text-[color:var(--foreground)] transition truncate">Quản lý Khách hàng</span>
+                      </div>
+                      <ChevronDown className="h-4 w-4 opacity-70 transition-transform group-open:rotate-180" />
+                    </div>
+                  </summary>
+
+                  <div className="mt-2 pl-8 space-y-1">
+                    <Link
+                      href="/admin/customers?assigned=assigned"
+                      className="group flex items-center justify-between gap-2 rounded-2xl px-3 py-2 border border-[color:var(--surface-border)] bg-[color:var(--surface)] hover:bg-white/35 transition"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="h-1.5 w-1.5 rounded-full bg-sky-600/80" />
+                        <span className="text-sm font-semibold text-[color:var(--foreground)] transition truncate">Danh sách đã gán</span>
+                      </div>
+                    </Link>
+                    <Link
+                      href="/admin/customers?assigned=master"
+                      className="group flex items-center justify-between gap-2 rounded-2xl px-3 py-2 border border-[color:var(--surface-border)] bg-[color:var(--surface)] hover:bg-white/35 transition"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/80" />
+                        <span className="text-sm font-semibold text-[color:var(--foreground)] transition truncate">Master khách hàng</span>
+                      </div>
+                    </Link>
+                  </div>
+                </details>
                 <NavLink href="/admin/employees" title="Quản lý Nhân viên" icon={<UserCog className="h-4 w-4" />} />
               </div>
 
