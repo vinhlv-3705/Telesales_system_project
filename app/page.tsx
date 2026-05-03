@@ -56,19 +56,18 @@ export type CustomerCallLog = CustomerListCustomerCallLog & {
 
 export default function Dashboard() {
   const router = useRouter();
-  const [isMounted, setIsMounted] = useState(false);
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(() => {
+    try {
+      if (typeof window === 'undefined') return false;
+      const savedTheme = localStorage.getItem('expense-tracker-theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      return savedTheme ? savedTheme === 'dark' : prefersDark;
+    } catch {
+      return false;
+    }
+  });
 
-  useEffect(() => {
-    setIsMounted(true);
-    if (typeof window === 'undefined') return;
-    const savedTheme = localStorage.getItem('expense-tracker-theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const resolved = savedTheme ? savedTheme === 'dark' : prefersDark;
-    setIsDark(resolved);
-  }, []);
-
-  const resolvedIsDark = isMounted ? isDark : false;
+  const resolvedIsDark = isDark;
 
   const bgStyle = useMemo(() => {
     return {
@@ -172,19 +171,19 @@ export default function Dashboard() {
   const birthdayInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    if (!isMounted) return;
+    if (typeof window === 'undefined') return;
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
     localStorage.setItem('expense-tracker-theme', isDark ? 'dark' : 'light');
-  }, [isDark, isMounted]);
+  }, [isDark]);
 
   useEffect(() => {
-    if (!isMounted) return;
+    if (typeof window === 'undefined') return;
     try {
-      localStorage.setItem('telesales_pinned_areas', JSON.stringify(pinnedAreaKeys));
+      window.localStorage.setItem('telesales_pinned_areas', JSON.stringify(pinnedAreaKeys));
     } catch {
       // ignore
     }
-  }, [isMounted, pinnedAreaKeys]);
+  }, [pinnedAreaKeys]);
 
   useEffect(() => {
     if (!areaDropdownOpen) return;
@@ -832,6 +831,12 @@ export default function Dashboard() {
     setInsightTab('history');
     setActiveCustomerId(customer.id);
     setResumeProcessedEditing(false);
+    setEditingCustomerDates(false);
+    setDraftBirthday(((customer.birthday || '') as string).trim() ? ((customer.birthday || '') as string).trim().slice(0, 10) : '');
+    setDraftContractSignedAt(
+      ((customer.contractSignedAt || '') as string).trim() ? ((customer.contractSignedAt || '') as string).trim().slice(0, 10) : ''
+    );
+    setDraftZaloConnected(Boolean(customer.zaloConnected));
     setFormData((prev) => ({
       ...prev,
       customerName: customer.customerName,
@@ -885,6 +890,14 @@ export default function Dashboard() {
     return raw ? raw.slice(0, 10) : '';
   });
   const [draftZaloConnected, setDraftZaloConnected] = useState<boolean>(() => Boolean(activeCustomer?.zaloConnected));
+
+  const syncCustomerDateDraftsFromActiveCustomer = () => {
+    const nextBirthday = (activeCustomer?.birthday || '').trim();
+    const nextContract = ((activeCustomer as unknown as { contractSignedAt?: string | null } | null)?.contractSignedAt || '').trim();
+    setDraftBirthday(nextBirthday ? nextBirthday.slice(0, 10) : '');
+    setDraftContractSignedAt(nextContract ? nextContract.slice(0, 10) : '');
+    setDraftZaloConnected(Boolean(activeCustomer?.zaloConnected));
+  };
 
   const saveCustomerDates = async () => {
     if (!activeCustomer?.id) return;
@@ -1092,61 +1105,63 @@ export default function Dashboard() {
                   </span>
                 </button>
 
-                {pinnedAreas.length > 0 && (
-                  <div className="mt-2 flex items-center gap-2 overflow-x-auto ui-scrollbar pb-1">
-                    {pinnedAreas.slice(0, 6).map((facet) => (
-                      <div
-                        key={`pin-${facet.key}`}
-                        onClick={() => setSelectedAreaKey(facet.key)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            setSelectedAreaKey(facet.key);
-                          }
-                        }}
-                        role="button"
-                        tabIndex={0}
-                        className={`shrink-0 h-8 rounded-full px-3 text-[12px] font-bold border transition-all inline-flex items-center gap-2 ${
-                          selectedAreaKey === facet.key
-                            ? isDark
-                              ? 'bg-white/15 border-white/25 text-slate-100'
-                              : 'bg-white/70 border-white/60 text-slate-900'
-                            : isDark
-                              ? 'bg-white/5 border-white/10 text-slate-200 hover:bg-white/10'
-                              : 'bg-white/30 border-white/20 text-slate-700 hover:bg-white/45'
-                        }`}
-                        title={facet.label}
-                      >
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPinnedAreaKeys((prev) => prev.filter((v) => v !== facet.key));
-                            setSelectedAreaKey((prev) => (prev === facet.key ? '__ALL__' : prev));
+                <div suppressHydrationWarning>
+                  {pinnedAreas.length > 0 && (
+                    <div className="mt-2 flex items-center gap-2 overflow-x-auto ui-scrollbar pb-1">
+                      {pinnedAreas.slice(0, 6).map((facet) => (
+                        <div
+                          key={`pin-${facet.key}`}
+                          onClick={() => setSelectedAreaKey(facet.key)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setSelectedAreaKey(facet.key);
+                            }
                           }}
-                          className={`inline-flex items-center justify-center rounded-full h-6 w-6 border transition ${
-                            isDark
-                              ? 'bg-amber-500/15 border-amber-400/30 text-amber-200 hover:bg-amber-500/20'
-                              : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
+                          role="button"
+                          tabIndex={0}
+                          className={`shrink-0 h-8 rounded-full px-3 text-[12px] font-bold border transition-all inline-flex items-center gap-2 ${
+                            selectedAreaKey === facet.key
+                              ? isDark
+                                ? 'bg-white/15 border-white/25 text-slate-100'
+                                : 'bg-white/70 border-white/60 text-slate-900'
+                              : isDark
+                                ? 'bg-white/5 border-white/10 text-slate-200 hover:bg-white/10'
+                                : 'bg-white/30 border-white/20 text-slate-700 hover:bg-white/45'
                           }`}
-                          aria-label="Bỏ ghim khu vực"
-                          title="Bỏ ghim"
+                          title={facet.label}
                         >
-                          <Pin className="h-3.5 w-3.5" />
-                        </button>
-                        <span className="max-w-36 truncate">{facet.label}</span>
-                        <span
-                          className={`inline-flex items-center justify-center min-w-6 h-5 px-1.5 rounded-full text-[11px] font-black border ${
-                            isDark ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-white/40 border-white/60 text-slate-700'
-                          }`}
-                          title="Số khách trong khu vực này"
-                        >
-                          {facet.count}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPinnedAreaKeys((prev) => prev.filter((v) => v !== facet.key));
+                              setSelectedAreaKey((prev) => (prev === facet.key ? '__ALL__' : prev));
+                            }}
+                            className={`inline-flex items-center justify-center rounded-full h-6 w-6 border transition ${
+                              isDark
+                                ? 'bg-amber-500/15 border-amber-400/30 text-amber-200 hover:bg-amber-500/20'
+                                : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
+                            }`}
+                            aria-label="Bỏ ghim khu vực"
+                            title="Bỏ ghim"
+                          >
+                            <Pin className="h-3.5 w-3.5" />
+                          </button>
+                          <span className="max-w-36 truncate">{facet.label}</span>
+                          <span
+                            className={`inline-flex items-center justify-center min-w-6 h-5 px-1.5 rounded-full text-[11px] font-black border ${
+                              isDark ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-white/40 border-white/60 text-slate-700'
+                            }`}
+                            title="Số khách trong khu vực này"
+                          >
+                            {facet.count}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 {areaDropdownOpen && (
                   <div
@@ -1612,7 +1627,10 @@ export default function Dashboard() {
                     {!editingCustomerDates ? (
                       <button
                         type="button"
-                        onClick={() => setEditingCustomerDates(true)}
+                        onClick={() => {
+                          syncCustomerDateDraftsFromActiveCustomer();
+                          setEditingCustomerDates(true);
+                        }}
                         className={`shrink-0 inline-flex items-center justify-center rounded-xl border h-9 w-9 transition ${
                           isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/35 border-white/50 hover:bg-white/55'
                         }`}
@@ -1638,7 +1656,10 @@ export default function Dashboard() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setEditingCustomerDates(false)}
+                          onClick={() => {
+                            syncCustomerDateDraftsFromActiveCustomer();
+                            setEditingCustomerDates(false);
+                          }}
                           className={`inline-flex items-center justify-center rounded-xl border h-9 w-9 transition ${
                             isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/35 border-white/50 hover:bg-white/55'
                           }`}
