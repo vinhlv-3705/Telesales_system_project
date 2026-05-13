@@ -120,11 +120,19 @@ export default function ProfileModal({ open, onClose, isDark = false, onProfileU
       if (!res.ok) {
         const errorData = await res.json();
         console.error("Server Error Details:", errorData);
-        throw new Error(errorData.message || "Failed to update profile");
+        
+        if (res.status === 404) {
+          throw new Error("Không tìm thấy người dùng trong hệ thống. Vui lòng đăng nhập lại.");
+        } else if (res.status === 401) {
+          throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+        } else {
+          throw new Error(errorData.message || "Không thể cập nhật thông tin");
+        }
       }
 
       const updatedUser = (await res.json()) as UserProfile;
       setUser(updatedUser);
+      setStats(updatedUser.stats || { totalCalls: 0, closedDeals: 0, closeRate: 0 });
       setToast({ type: "success", message: "Đã cập nhật thông tin thành công." });
       
       // Update parent state
@@ -143,7 +151,8 @@ export default function ProfileModal({ open, onClose, isDark = false, onProfileU
       }, 1500);
     } catch (error) {
       console.error("Error updating profile:", error);
-      setToast({ type: "error", message: "Không thể cập nhật thông tin." });
+      const errorMessage = error instanceof Error ? error.message : "Không thể cập nhật thông tin";
+      setToast({ type: "error", message: errorMessage });
     } finally {
       setSaving(false);
     }

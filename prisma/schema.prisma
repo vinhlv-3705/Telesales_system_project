@@ -3,39 +3,25 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-}
-
-enum CallStatus {
-  CHOT_DON
-  TU_CHOI
-  MOI
-  UPSALE
-  HEN_GOI_LAI
-}
-
-enum Role {
-  ADMIN
-  AGENT
+  provider = "postgresql"
 }
 
 model User {
-  id         String    @id @default(cuid())
-  username   String    @unique
-  password   String    @default("password123")
-  fullName   String?   @default("")
-  phoneNumber String?
-  email      String?
-  avatarUrl  String?
-  bio        String?   @db.Text
-  role       Role      @default(AGENT)
-  isLocked   Boolean   @default(false)
-  lockedAt   DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-
-  customers Customer[]
-  callLogs  CallLog[]
+  id                  String               @id @default(cuid())
+  username            String               @unique
+  password            String               @default("password123")
+  role                Role                 @default(AGENT)
+  isLocked            Boolean              @default(false)
+  lockedAt            DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  avatarUrl           String?
+  bio                 String?
+  email               String?
+  fullName            String?              @default("")
+  phoneNumber         String?
+  callLogs            CallLog[]
+  customers           Customer[]
   customerAssignments CustomerAssignment[]
 
   @@index([role])
@@ -43,36 +29,36 @@ model User {
 }
 
 model Customer {
-  id           String    @id @default(cuid())
-  customerCode String    @unique
-  fullName     String
-  name         String?
-  birthday     DateTime?
-  contractSignedAt DateTime?
-  phone        String
-  district     String?
-  area         String?
-  address      String?
-  taxCode      String?
-  groupCode    String?
-  partner      String?
-  bankAccount  String?
-  status       String    @default("Mới")
-  callbackTime String?
-  lastOrderAt  DateTime?
+  id                String               @id @default(cuid())
+  customerCode      String               @unique
+  fullName          String
+  name              String?
+  phone             String
+  area              String?
+  address           String?
+  taxCode           String?
+  groupCode         String?
+  partner           String?
+  status            String               @default("Mới")
+  callbackTime      String?
+  totalRevenue      Float                @default(0)
+  assignedTo        String
+  assignedToId      String?
+  medicalRep        String               @default("Admin")
+  email             String?
+  notes             String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  birthday          DateTime?
+  lastOrderAt       DateTime?
   productsPurchased String?
-  totalRevenue Float     @default(0)
-  assignedTo   String
-  assignedToId String?
-  assignedToUser User?   @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
-  medicalRep   String    @default("Admin")
-  email        String?
-  notes        String?
-  zaloConnected Boolean   @default(false)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  callLogs     CallLog[]
-  assignments  CustomerAssignment[]
+  zaloConnected     Boolean              @default(false)
+  contractSignedAt  DateTime?
+  bankAccount       String?
+  district          String?
+  callLogs          CallLog[]
+  assignedToUser    User?                @relation(fields: [assignedToId], references: [id])
+  assignments       CustomerAssignment[]
 
   @@index([fullName])
   @@index([phone])
@@ -88,7 +74,6 @@ model CustomerAssignment {
   userId     String
   isPrimary  Boolean  @default(false)
   createdAt  DateTime @default(now())
-
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -99,25 +84,25 @@ model CustomerAssignment {
 }
 
 model CallLog {
-  id           String     @id @default(cuid())
-  customerId   String
-  customer     Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  agentId      String?
-  agent        User?      @relation(fields: [agentId], references: [id], onDelete: SetNull)
-  agentName    String
-  customerName String
-  callStatus   CallStatus @default(MOI)
-  revenue      Float      @default(0)
-  callbackDate DateTime?
-  callbackTime String?
-  productIds   String[]
+  id                String     @id @default(cuid())
+  customerId        String
+  agentId           String?
+  agentName         String
+  customerName      String
+  callStatus        CallStatus @default(MOI)
+  revenue           Float      @default(0)
+  callbackDate      DateTime?
+  callbackTime      String?
+  note              String?
+  notes             String?
+  timestamp         DateTime   @default(now())
+  callAt            DateTime   @default(now())
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
   productsPurchased String?
-  note         String?
-  notes        String?
-  timestamp    DateTime   @default(now())
-  callAt       DateTime   @default(now())
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  productIds        String[]
+  agent             User?      @relation(fields: [agentId], references: [id])
+  customer          Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@index([customerId])
   @@index([agentId])
@@ -139,14 +124,27 @@ model Product {
   id         String          @id @default(cuid())
   name       String
   code       String?
-  price      Int             @default(0)
   isActive   Boolean         @default(true)
   categoryId String
-  category   ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
+  price      Int             @default(0)
+  category   ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@index([name])
   @@index([categoryId])
   @@map("product")
+}
+
+enum CallStatus {
+  CHOT_DON
+  TU_CHOI
+  MOI
+  UPSALE
+  HEN_GOI_LAI
+}
+
+enum Role {
+  ADMIN
+  AGENT
 }
