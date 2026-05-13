@@ -2,17 +2,18 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const cookieStore = await cookies();
-    const session = cookieStore.get("telesales_session")?.value;
+    const username = cookieStore.get("telesales_user")?.value;
 
-    if (!session) {
+    console.log("GET Profile - Extracted username from telesales_user cookie:", username);
+
+    if (!username) {
       return NextResponse.json({ message: "Chưa đăng nhập." }, { status: 401 });
     }
-
-    // Parse session to extract username (format: username:timestamp)
-    const username = session.split(':')[0];
 
     const user = await prisma.user.findUnique({
       where: { username },
@@ -27,6 +28,8 @@ export async function GET() {
         role: true,
       },
     });
+
+    console.log("GET Profile - Found user:", user);
 
     if (!user) {
       return NextResponse.json({
@@ -55,6 +58,8 @@ export async function GET() {
     const closedDeals = callLogs.filter((log) => log.callStatus === "CHOT_DON").length;
     const closeRate = totalCalls > 0 ? (closedDeals / totalCalls) * 100 : 0;
 
+    console.log("GET Profile - Stats for user", user.id, ":", { totalCalls, closedDeals, closeRate });
+
     const response = {
       id: user.id,
       username: user.username,
@@ -71,7 +76,11 @@ export async function GET() {
       },
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
+    });
   } catch (error) {
     console.error("GET /api/user/profile error:", error);
     return NextResponse.json({
@@ -95,23 +104,26 @@ export async function GET() {
 export async function PATCH(request: Request) {
   try {
     const cookieStore = await cookies();
-    const session = cookieStore.get("telesales_session")?.value;
+    const username = cookieStore.get("telesales_user")?.value;
 
-    if (!session) {
+    console.log("PATCH Profile - Extracted username from telesales_user cookie:", username);
+
+    if (!username) {
       return NextResponse.json({ message: "Chưa đăng nhập." }, { status: 401 });
     }
 
-    // Parse session to extract username (format: username:timestamp)
-    const username = session.split(':')[0];
-
     const body = await request.json();
     const { fullName, phoneNumber, email, avatarUrl, bio } = body;
+    console.log("PATCH Profile - Request body:", { fullName, phoneNumber, email, avatarUrl, bio });
 
     const user = await prisma.user.findUnique({
       where: { username },
     });
 
+    console.log("PATCH Profile - Found user:", user);
+
     if (!user) {
+      console.error("PATCH Profile - User not found for username:", username);
       return NextResponse.json({ message: "Không tìm thấy người dùng." }, { status: 404 });
     }
 
@@ -127,6 +139,8 @@ export async function PATCH(request: Request) {
     if (email !== undefined) updateData.email = email;
     if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
     if (bio !== undefined) updateData.bio = bio;
+
+    console.log("PATCH Profile - Update data:", updateData);
 
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
@@ -152,6 +166,8 @@ export async function PATCH(request: Request) {
     const closedDeals = callLogs.filter((log) => log.callStatus === "CHOT_DON").length;
     const closeRate = totalCalls > 0 ? (closedDeals / totalCalls) * 100 : 0;
 
+    console.log("PATCH Profile - Updated stats for user", user.id, ":", { totalCalls, closedDeals, closeRate });
+
     const response = {
       ...updatedUser,
       stats: {
@@ -161,7 +177,11 @@ export async function PATCH(request: Request) {
       },
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
+    });
   } catch (error) {
     console.error("PATCH /api/user/profile error:", error);
     return NextResponse.json({ message: "Không thể cập nhật thông tin." }, { status: 500 });
