@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronLeft, ChevronRight, FileSpreadsheet, Filter, RefreshCw, Search, Trash2, Upload, UserPlus, Users, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileSpreadsheet, Filter, Pencil, RefreshCw, Search, Trash2, Upload, UserPlus, Users, X } from "lucide-react";
 import { motion } from "framer-motion";
 
 type CustomerRow = {
@@ -11,6 +11,7 @@ type CustomerRow = {
   customerName: string;
   phoneNumber: string;
   address: string;
+  district?: string;
   area: string;
   groupCode: string;
   partner: string;
@@ -67,6 +68,88 @@ function AdminCustomersInner() {
       clearInterval(interval);
     };
   }, []);
+
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2400);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editTarget, setEditTarget] = useState<CustomerRow | null>(null);
+  const [editForm, setEditForm] = useState({
+    customerName: "",
+    phoneNumber: "",
+    district: "",
+    status: "Mới",
+    assignedToId: "",
+  });
+
+  const openEdit = (row: CustomerRow) => {
+    setError(null);
+    setEditTarget(row);
+    const assignedId = agents.find((a) => a.username === (row.assignedToName ?? ""))?.id ?? "";
+    setEditForm({
+      customerName: row.customerName ?? "",
+      phoneNumber: row.phoneNumber ?? "",
+      district: (row.district ?? row.area ?? "") as string,
+      status: row.callStatus ?? "Mới",
+      assignedToId: assignedId,
+    });
+    setEditOpen(true);
+  };
+
+  const submitEdit = async () => {
+    if (!editTarget) return;
+    const customerName = editForm.customerName.trim();
+    const phoneNumber = editForm.phoneNumber.trim();
+    if (!customerName) {
+      setToast({ type: "error", message: "Vui lòng nhập tên khách hàng." });
+      return;
+    }
+
+    setEditSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/customers/${editTarget.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          customerName,
+          phoneNumber,
+          district: editForm.district.trim(),
+          status: editForm.status,
+          assignedToId: editForm.assignedToId || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const payload = (await res.json().catch(() => null)) as { message?: string } | null;
+        throw new Error(payload?.message || "Không thể cập nhật khách hàng.");
+      }
+
+      const payload = (await res.json()) as { item: CustomerRow };
+      const updated = payload.item;
+
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          items: prev.items.map((it) => (it.id === updated.id ? { ...it, ...updated } : it)),
+        };
+      });
+
+      setToast({ type: "success", message: "Cập nhật thành công." });
+      setEditOpen(false);
+      setEditTarget(null);
+    } catch (e) {
+      setToast({ type: "error", message: e instanceof Error ? e.message : "Có lỗi xảy ra" });
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
@@ -619,6 +702,7 @@ function AdminCustomersInner() {
                   <th className={`py-2 font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>Trạng thái</th>
                   <th className={`py-2 font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>Lần cuối tương tác</th>
                   <th className={`py-2 font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>Assigned</th>
+                  <th className={`py-2 font-black text-right ${isDark ? "text-slate-100" : "text-slate-900"}`}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -628,7 +712,7 @@ function AdminCustomersInner() {
                   const stale = typeof days === "number" && days >= 30;
 
                   return (
-                    <tr key={row.id} className={`border-t border-white/10 ${stale ? "bg-amber-500/10" : ""}`}>
+                    <tr key={row.id} className={`group border-t border-white/10 ${stale ? "bg-amber-500/10" : ""}`}>
                       <td className="py-2">
                         <input
                           type="checkbox"
@@ -639,19 +723,34 @@ function AdminCustomersInner() {
                       <td className="py-2 font-semibold whitespace-nowrap">{row.customerCode}</td>
                       <td className="py-2">{row.customerName}</td>
                       <td className="py-2 whitespace-nowrap">{row.phoneNumber}</td>
-                      <td className="py-2 whitespace-nowrap">{row.area}</td>
+                      <td className="py-2 whitespace-nowrap">{(row.district ?? row.area) || "--"}</td>
                       <td className="py-2 whitespace-nowrap">{row.callStatus}</td>
                       <td className="py-2 whitespace-nowrap">
                         {row.lastInteractionAt ? new Date(row.lastInteractionAt).toLocaleString("vi-VN") : "--"}
                       </td>
                       <td className="py-2 whitespace-nowrap">{row.assignedToName ?? "--"}</td>
+                      <td className="py-2 whitespace-nowrap text-right">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(row)}
+                          className={`inline-flex items-center justify-center h-9 w-9 rounded-xl border transition opacity-0 group-hover:opacity-100 focus:opacity-100 ${
+                            isDark
+                              ? "bg-white/5 border-white/10 hover:bg-white/10"
+                              : "bg-white/60 border-white/30 hover:bg-white/80"
+                          }`}
+                          title="Chỉnh sửa"
+                          aria-label="Chỉnh sửa"
+                        >
+                          <Pencil className={`h-4 w-4 ${isDark ? "text-slate-300" : "text-slate-500"}`} />
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
 
                 {items.length === 0 && (
                   <tr>
-                    <td className="py-3 opacity-70" colSpan={8}>
+                    <td className="py-3 opacity-70" colSpan={9}>
                       Không có dữ liệu.
                     </td>
                   </tr>
@@ -1073,6 +1172,168 @@ function AdminCustomersInner() {
                 {importing ? "Đang import..." : "Import"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {editOpen && editTarget && (
+        <div className="fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onMouseDown={() => {
+              if (editSaving) return;
+              setEditOpen(false);
+              setEditTarget(null);
+            }}
+          />
+
+          <div
+            className={`absolute right-0 top-0 h-full w-full max-w-lg border-l shadow-2xl backdrop-blur-2xl p-5 md:p-6 overflow-y-auto ui-scrollbar ${
+              isDark ? "bg-slate-900/85 border-white/10 text-slate-100" : "bg-white/90 border-slate-200 text-slate-900"
+            }`}
+            onMouseDown={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-xl font-black truncate">Chỉnh sửa khách hàng</div>
+                <div className={`mt-1 text-xs font-semibold ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+                  {editTarget.customerCode}
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={editSaving}
+                onClick={() => {
+                  setEditOpen(false);
+                  setEditTarget(null);
+                }}
+                className={`h-10 w-10 rounded-2xl border inline-flex items-center justify-center transition disabled:opacity-60 ${
+                  isDark ? "bg-white/5 border-white/10 hover:bg-white/10" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                }`}
+                title="Đóng"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-3">
+              <div>
+                <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Tên khách hàng</label>
+                <input
+                  value={editForm.customerName}
+                  onChange={(e) => setEditForm((p) => ({ ...p, customerName: e.target.value }))}
+                  className={`mt-1 h-11 w-full px-3 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
+                    isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-300 text-slate-900"
+                  }`}
+                  placeholder="VD: Nhà thuốc A"
+                />
+              </div>
+
+              <div>
+                <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Số điện thoại</label>
+                <input
+                  value={editForm.phoneNumber}
+                  onChange={(e) => setEditForm((p) => ({ ...p, phoneNumber: e.target.value }))}
+                  className={`mt-1 h-11 w-full px-3 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
+                    isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-300 text-slate-900"
+                  }`}
+                  placeholder="VD: 090xxxxxxx"
+                />
+              </div>
+
+              <div>
+                <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Địa bàn</label>
+                <input
+                  value={editForm.district}
+                  onChange={(e) => setEditForm((p) => ({ ...p, district: e.target.value }))}
+                  className={`mt-1 h-11 w-full px-3 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
+                    isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-300 text-slate-900"
+                  }`}
+                  placeholder="VD: Thủy Nguyên"
+                />
+              </div>
+
+              <div>
+                <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Trạng thái</label>
+                <select
+                  value={editForm.status}
+                  onChange={(e) => setEditForm((p) => ({ ...p, status: e.target.value }))}
+                  className={`mt-1 h-11 w-full px-3 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
+                    isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-300 text-slate-900"
+                  }`}
+                >
+                  <option value="Mới">Mới</option>
+                  <option value="Hẹn gọi lại">Hẹn gọi lại</option>
+                  <option value="Chốt đơn">Chốt đơn</option>
+                  <option value="Từ chối">Từ chối</option>
+                  <option value="Upsell">Upsell</option>
+                </select>
+              </div>
+
+              <div>
+                <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Gán cho nhân viên</label>
+                <select
+                  value={editForm.assignedToId}
+                  onChange={(e) => setEditForm((p) => ({ ...p, assignedToId: e.target.value }))}
+                  className={`mt-1 h-11 w-full px-3 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
+                    isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-300 text-slate-900"
+                  }`}
+                >
+                  <option value="">(Bỏ gán)</option>
+                  {agents.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.username}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                disabled={editSaving}
+                onClick={() => {
+                  setEditOpen(false);
+                  setEditTarget(null);
+                }}
+                className={`h-11 px-4 rounded-2xl border text-sm font-bold transition disabled:opacity-60 ${
+                  isDark ? "bg-white/5 border-white/10 hover:bg-white/10" : "bg-white border-slate-200 hover:bg-slate-50"
+                }`}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={editSaving}
+                onClick={submitEdit}
+                className={`h-11 px-4 rounded-2xl border text-sm font-bold transition disabled:opacity-60 ${
+                  isDark ? "bg-sky-500/25 border-sky-400/30 hover:bg-sky-500/30" : "bg-sky-500/15 border-sky-500/20 hover:bg-sky-500/20"
+                }`}
+              >
+                {editSaving ? "Đang lưu..." : "Lưu"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-[60]">
+          <div
+            className={`rounded-2xl border px-4 py-3 shadow-xl backdrop-blur-2xl text-sm font-semibold ${
+              toast.type === "success"
+                ? isDark
+                  ? "bg-emerald-500/15 border-emerald-400/20 text-emerald-100"
+                  : "bg-emerald-50 border-emerald-200 text-emerald-800"
+                : isDark
+                  ? "bg-rose-500/15 border-rose-400/20 text-rose-100"
+                  : "bg-rose-50 border-rose-200 text-rose-800"
+            }`}
+          >
+            {toast.message}
           </div>
         </div>
       )}
