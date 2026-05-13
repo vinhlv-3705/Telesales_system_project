@@ -21,6 +21,7 @@ interface CallLogFormProps {
   onSubmit: () => void;
   onValidationError: (msg: string) => void;
   isDark: boolean;
+  isEditing?: boolean;
   compact?: boolean;
   isSaving?: boolean;
   saveSucceeded?: boolean;
@@ -33,6 +34,7 @@ export default function CallLogForm({
   onSubmit,
   onValidationError,
   isDark,
+  isEditing = false,
   compact = false,
   isSaving = false,
   saveSucceeded = false,
@@ -41,7 +43,6 @@ export default function CallLogForm({
   const revenueRef = useRef<HTMLInputElement | null>(null);
   const callbackDateRef = useRef<HTMLInputElement | null>(null);
   const noteRef = useRef<HTMLTextAreaElement | null>(null);
-  const isEditing = false;
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [productPickerOpen, setProductPickerOpen] = useState(false);
 
