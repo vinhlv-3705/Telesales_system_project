@@ -9,6 +9,9 @@
     "start": "next start",
     "lint": "eslint",
     "db:clone": "node scripts/clone-db.js",
+    "data:sync:md": "ts-node --transpile-only scripts/sync-ha-from-md.ts",
+    "data:ha:sync": "ts-node --transpile-only scripts/sync-ha-from-md.ts --file=Du_lieu_Ha_.md",
+    "data:assignments:backfill": "ts-node --transpile-only scripts/backfill-customer-assignments.ts",
     "mcp": "node context7-server/server.js"
   },
   "dependencies": {

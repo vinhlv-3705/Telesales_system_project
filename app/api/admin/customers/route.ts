@@ -192,10 +192,12 @@ export async function POST(request: Request) {
           address?: string;
           district?: string;
           area?: string;
+          assignedToId?: string;
           groupCode?: string;
           partner?: string;
           bankAccount?: string;
           zaloConnected?: boolean;
+          notes?: string;
         }
       | null;
 
@@ -206,10 +208,12 @@ export async function POST(request: Request) {
     const address = (body?.address || "").trim();
     const district = (body?.district || "").trim();
     const area = (body?.area || "").trim();
+    const assignedToId = (body?.assignedToId || "").trim();
     const groupCode = (body?.groupCode || "").trim();
     const partner = (body?.partner || "").trim();
     const bankAccount = (body?.bankAccount || "").trim();
     const zaloConnected = Boolean(body?.zaloConnected);
+    const notes = (body?.notes || "").trim();
 
     const birthday = (() => {
       if (!birthdayRaw) return null;
@@ -227,6 +231,13 @@ export async function POST(request: Request) {
     if (!phoneNumber) {
       return NextResponse.json({ message: "Thiếu số điện thoại." }, { status: 400 });
     }
+    if (!area) {
+      return NextResponse.json({ message: "Thiếu Khu vực." }, { status: 400 });
+    }
+
+    const assignedUser = assignedToId
+      ? await prisma.user.findUnique({ where: { id: assignedToId }, select: { id: true, username: true } })
+      : null;
 
     try {
       const created = await (prisma as unknown as { customer: { create: (args: unknown) => Promise<unknown> } }).customer.create({
@@ -241,10 +252,11 @@ export async function POST(request: Request) {
           groupCode: groupCode || null,
           partner: partner || null,
           bankAccount: bankAccount || null,
+          notes: notes || null,
           zaloConnected,
-          status: "MOI",
-          assignedTo: "Admin",
-          assignedToId: null,
+          status: "Mới",
+          assignedTo: assignedUser?.username ?? "Admin",
+          assignedToId: assignedUser?.id ?? null,
         },
         select: {
           id: true,
@@ -259,6 +271,7 @@ export async function POST(request: Request) {
           bankAccount: true,
           status: true,
           zaloConnected: true,
+          assignedToUser: { select: { username: true } },
         },
       });
 
@@ -290,7 +303,7 @@ export async function POST(request: Request) {
           callStatus: normalizeStatusLabel(createdRow.status),
           zaloConnected: Boolean(createdRow.zaloConnected),
           lastInteractionAt: "",
-          assignedToName: "",
+          assignedToName: (createdRow as { assignedToUser?: { username: string } | null }).assignedToUser?.username ?? "",
         },
       });
     } catch (error) {

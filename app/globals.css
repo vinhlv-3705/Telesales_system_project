@@ -23,6 +23,7 @@
   --blob-3: rgba(59, 130, 246, 0.2);
   --blob-4: rgba(15, 23, 42, 0.35);
   --ring: #60a5fa;
+  color-scheme: dark;
 }
 
 @theme inline {
