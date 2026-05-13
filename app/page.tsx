@@ -1158,9 +1158,9 @@ export default function Dashboard() {
             </motion.button>
           </div>
         </motion.div>
-        <div className="h-[calc(100vh-80px)] grid grid-cols-1 xl:grid-cols-[25%_45%_30%] gap-4">
-          <section className="h-full flex flex-col gap-3 overflow-hidden">
-            <div className={`ui-card p-4 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+        <div className="h-[calc(100vh-theme(spacing.24))] grid grid-cols-1 xl:grid-cols-[25%_45%_30%] gap-4 overflow-hidden">
+          <section className="h-full flex flex-col gap-3 overflow-hidden min-h-0">
+            <div className={`ui-card p-4 sticky top-0 z-20 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
               <div className="relative mb-2">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
@@ -1573,22 +1573,26 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-            <CustomerList
-              customers={filteredCallLogs}
-              onCall={handleSelectCustomer}
-              activeCustomerId={activeCustomer?.id}
-              isDark={isDark}
-              showCallbackSchedule={queueView === 'callback'}
-            />
-            {isLoadingCustomers && (
-              <p className={`text-xs px-2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Đang tải khách hàng từ DB...</p>
-            )}
-            {!isLoadingCustomers && !customerLoadError && filteredCallLogs.length === 0 && (
-              <p className={`text-xs px-2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Không có khách hàng nào phù hợp bộ lọc.</p>
-            )}
-            {customerLoadError && (
-              <p className="text-xs px-2 text-rose-500">{customerLoadError}</p>
-            )}
+
+            <div className="flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable] ui-scrollbar pr-1 pb-20">
+              <CustomerList
+                customers={filteredCallLogs}
+                onCall={handleSelectCustomer}
+                activeCustomerId={activeCustomer?.id}
+                isDark={isDark}
+                showCallbackSchedule={queueView === 'callback'}
+              />
+              {isLoadingCustomers && (
+                <p className={`text-xs px-2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Đang tải khách hàng từ DB...</p>
+              )}
+              {!isLoadingCustomers && !customerLoadError && filteredCallLogs.length === 0 && (
+                <p className={`text-xs px-2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Không có khách hàng nào phù hợp bộ lọc.</p>
+              )}
+              {customerLoadError && (
+                <p className="text-xs px-2 text-rose-500">{customerLoadError}</p>
+              )}
+            </div>
+
           </section>
 
           <section className="h-full flex flex-col gap-3 overflow-hidden">
