@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Sun, Moon, LogOut, Phone, Cake, Package, Tag, Copy, ChevronDown, Pin, X, Pencil, Check, CalendarDays } from 'lucide-react';
+import { Search, Sun, Moon, LogOut, Phone, Cake, Package, Tag, Copy, ChevronDown, Pin, X, Pencil, Check, CalendarDays, UserCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import CallLogForm, { CallFormData } from '../components/CallLogForm';
 import CustomerList from '../components/CustomerList';
+import ProfileModal from '../components/ProfileModal';
 import type { CustomerCallLog as CustomerListCustomerCallLog } from '../components/CustomerList';
 
 const ZaloIcon = ({ className }: { className?: string }) => (
@@ -151,6 +152,8 @@ export default function Dashboard() {
   });
   const [loggedInRole, setLoggedInRole] = useState<UserRole>('AGENT');
   const [loggedInUser, setLoggedInUser] = useState<string>('User');
+  const [userProfile, setUserProfile] = useState<{ fullName: string | null; avatarUrl: string | null } | null>(null);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [agentOptions, setAgentOptions] = useState<AgentOption[]>([]);
   const [adminAssignedToId, setAdminAssignedToId] = useState<string>('');
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerCallLog | null>(null);
@@ -222,6 +225,26 @@ export default function Dashboard() {
   useEffect(() => {
     setSelectedDistrictKey('__ALL__');
   }, [selectedAreaKey]);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const res = await fetch('/api/user/profile');
+        if (res.ok) {
+          const data = await res.json();
+          setUserProfile({
+            fullName: data.fullName,
+            avatarUrl: data.avatarUrl,
+          });
+        }
+      } catch {
+        // ignore
+      }
+    };
+    if (mounted) {
+      fetchUserProfile();
+    }
+  }, [mounted]);
 
   const locationKeyOf = useCallback((value: string) => {
     return value
@@ -1147,15 +1170,46 @@ export default function Dashboard() {
               <div className="h-10 w-24 rounded-2xl border border-slate-200/60 bg-white" aria-hidden="true" />
             )}
 
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={handleLogout}
-              className="ui-btn"
+            <button
+              type="button"
+              onClick={() => setProfileModalOpen(true)}
+              className={`h-10 px-3 rounded-2xl border inline-flex items-center gap-2 text-sm font-bold transition ${
+                resolvedIsDark
+                  ? 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-100'
+                  : 'bg-white border-slate-300 hover:bg-slate-50 text-slate-700'
+              }`}
+              title="Hồ sơ cá nhân"
+              aria-label="Hồ sơ cá nhân"
             >
-              <LogOut className="h-4 w-4 mr-2" />
-              Đăng xuất
-            </motion.button>
+              {userProfile?.avatarUrl ? (
+                <img
+                  src={userProfile.avatarUrl}
+                  alt="Avatar"
+                  className="h-8 w-8 rounded-full object-cover"
+                />
+              ) : (
+                <UserCircle className="h-8 w-8" />
+              )}
+              <span className="max-w-32 truncate">{userProfile?.fullName || loggedInUser}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={async () => {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                router.push('/login');
+                router.refresh();
+              }}
+              className={`h-10 px-3 rounded-2xl border inline-flex items-center gap-2 text-sm font-bold transition ${
+                resolvedIsDark
+                  ? 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-100'
+                  : 'bg-white border-slate-300 hover:bg-slate-50 text-slate-700'
+              }`}
+              title="Đăng xuất"
+              aria-label="Đăng xuất"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
           </div>
         </motion.div>
         <div className="h-[calc(100vh-theme(spacing.24))] grid grid-cols-1 xl:grid-cols-[25%_45%_30%] gap-4 overflow-hidden">
@@ -1314,7 +1368,7 @@ export default function Dashboard() {
                       </div>
                     </div>
 
-                    <div className="mt-2 max-h-64 overflow-y-auto ui-scrollbar pr-1">
+                    <div className="mt-2 max-h-64 overflow-y-auto ui-scrollbar pr-1 pb-10">
                       <button
                         type="button"
                         onClick={() => {
@@ -1882,11 +1936,11 @@ export default function Dashboard() {
                   {activeProducts.length === 0 ? (
                     <div className={`mt-1 text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>--</div>
                   ) : (
-                    <div className="mt-2 flex flex-wrap gap-2">
+                    <div className="mt-2 flex flex-wrap gap-2 max-h-32 overflow-y-auto ui-scrollbar pr-1 pb-2">
                       {(productsExpanded ? activeProducts : activeProducts.slice(0, 6)).map((p) => (
                         <span
                           key={p}
-                          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold shrink-0 ${
                             isDark ? 'bg-white/5 border-white/10 text-slate-100' : 'bg-white/45 border-white/60 text-slate-800'
                           }`}
                         >
@@ -1898,7 +1952,7 @@ export default function Dashboard() {
                       ))}
                       {!productsExpanded && activeProducts.length > 6 && (
                         <span
-                          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold ${
+                          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold shrink-0 ${
                             isDark ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-white/35 border-white/60 text-slate-700'
                           }`}
                         >
@@ -1920,9 +1974,9 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className={`ui-card p-6 flex-1 overflow-hidden ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-              <h3 className={`text-xl font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>Customer Insight</h3>
-              <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className={`ui-card p-6 flex-1 flex flex-col overflow-hidden ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+              <h3 className={`text-xl font-bold shrink-0 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>Customer Insight</h3>
+              <div className="mt-4 grid grid-cols-2 gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setInsightTab('history')}
@@ -1952,7 +2006,7 @@ export default function Dashboard() {
               </div>
 
               {insightTab === 'history' ? (
-                <div className="mt-4 space-y-3 h-[calc(100%-100px)] overflow-y-auto ui-scrollbar pr-1">
+                <div className="mt-4 space-y-3 flex-1 overflow-y-auto min-h-0 ui-scrollbar pr-1 pb-10">
                   {customerCallHistory.map((item) => (
                     <div
                       key={item.id}
@@ -1980,7 +2034,7 @@ export default function Dashboard() {
                   )}
                 </div>
               ) : (
-                <div className="mt-4 space-y-3">
+                <div className="mt-4 space-y-3 flex-1 overflow-y-auto min-h-0 ui-scrollbar pr-1 pb-10">
                   <div className={`rounded-xl p-3 border ${isDark ? 'bg-slate-800/40 border-slate-700/60 text-slate-200' : 'bg-white border-slate-200 text-slate-700'}`}>
                     <div className="text-xs opacity-80">Tổng số lần đã gọi</div>
                     <div className="text-xl font-bold">{customerPersonalStats.totalCalls}</div>
@@ -1999,50 +2053,52 @@ export default function Dashboard() {
             </div>
           </section>
 
-          <section className="h-full">
-            <div className={`ui-card p-5 h-full overflow-y-auto ui-scrollbar ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-              <h3 className={`text-lg font-semibold mb-3 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>Call Interface</h3>
-              {queueView === 'processed' && !resumeProcessedEditing ? (
-                <div
-                  className={`rounded-2xl border p-4 ${
-                    isDark ? 'bg-white/5 border-white/10' : 'bg-white/35 border-white/30'
-                  }`}
-                >
-                  <div className={`text-sm ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-                    Khách hàng ở tab <span className="font-bold">Đã xử lý</span>. Bạn có thể tiếp tục cập nhật kết quả nếu cần.
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const currentStatus = (activeCustomer?.callStatus || 'Mới') as CallStatus;
-                      setFormData((prev) => ({ ...prev, callStatus: currentStatus }));
-                      setResumeProcessedEditing(true);
-                    }}
-                    className={`mt-3 w-full h-10 rounded-xl text-sm font-bold border transition ${
-                      isDark
-                        ? 'bg-white/10 border-white/15 text-slate-100 hover:bg-white/15'
-                        : 'bg-white/60 border-white/70 text-slate-800 hover:bg-white/80'
+          <section className="h-full flex flex-col overflow-hidden min-h-0">
+            <div className={`ui-card p-5 flex-1 flex flex-col overflow-hidden ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+              <h3 className={`text-lg font-semibold mb-3 shrink-0 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>Call Interface</h3>
+              <div className="flex-1 overflow-y-auto min-h-0 ui-scrollbar pr-1 pb-10">
+                {queueView === 'processed' && !resumeProcessedEditing ? (
+                  <div
+                    className={`rounded-2xl border p-4 ${
+                      isDark ? 'bg-white/5 border-white/10' : 'bg-white/35 border-white/30'
                     }`}
                   >
-                    Tiếp tục xử lý
-                  </button>
-                </div>
-              ) : (
-                <CallLogForm
-                  formData={formData}
-                  setFormData={setFormData}
-                  onSubmit={saveCallLog}
-                  onValidationError={setToastMessage}
-                  isDark={isDark}
-                  loggedInRole={loggedInRole}
-                  compact
-                  isSaving={isSaving}
-                  saveSucceeded={saveSucceeded}
-                />
-              )}
-              {isSaving && (
-                <p className={`text-xs mt-2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Đang lưu nhật ký cuộc gọi...</p>
-              )}
+                    <div className={`text-sm ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                      Khách hàng ở tab <span className="font-bold">Đã xử lý</span>. Bạn có thể tiếp tục cập nhật kết quả nếu cần.
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currentStatus = (activeCustomer?.callStatus || 'Mới') as CallStatus;
+                        setFormData((prev) => ({ ...prev, callStatus: currentStatus }));
+                        setResumeProcessedEditing(true);
+                      }}
+                      className={`mt-3 w-full h-10 rounded-xl text-sm font-bold border transition ${
+                        isDark
+                          ? 'bg-white/10 border-white/15 text-slate-100 hover:bg-white/15'
+                          : 'bg-white/60 border-white/70 text-slate-800 hover:bg-white/80'
+                      }`}
+                    >
+                      Tiếp tục xử lý
+                    </button>
+                  </div>
+                ) : (
+                  <CallLogForm
+                    formData={formData}
+                    setFormData={setFormData}
+                    onSubmit={saveCallLog}
+                    onValidationError={setToastMessage}
+                    isDark={isDark}
+                    loggedInRole={loggedInRole}
+                    compact
+                    isSaving={isSaving}
+                    saveSucceeded={saveSucceeded}
+                  />
+                )}
+                {isSaving && (
+                  <p className={`text-xs mt-2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Đang lưu nhật ký cuộc gọi...</p>
+                )}
+              </div>
             </div>
           </section>
         </div>
@@ -2054,6 +2110,12 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+      <ProfileModal
+        open={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+        isDark={isDark}
+        onProfileUpdate={(profile) => setUserProfile(profile)}
+      />
     </div>
   );
 }

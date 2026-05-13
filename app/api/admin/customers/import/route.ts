@@ -142,9 +142,11 @@ export async function POST(request: Request) {
       "address",
       "district",
       "area",
+      "assignedTo",
       "groupCode",
       "partner",
       "bankAccount",
+      "notes",
     ] as const;
 
     for (let i = 0; i < rows.length; i += 1) {
@@ -171,6 +173,7 @@ export async function POST(request: Request) {
         address: cleanString((r as Record<string, unknown>)['address'] ?? (r as Record<string, unknown>)["Địa chỉ"]),
         district: normalizeNullable((r as Record<string, unknown>)["district"] ?? (r as Record<string, unknown>)["ĐỊA BÀN"] ?? (r as Record<string, unknown>)["Địa bàn"]),
         area: normalizeNullable((r as Record<string, unknown>)["area"] ?? (r as Record<string, unknown>)["KHU VỰC"] ?? (r as Record<string, unknown>)["Khu vực"]),
+        assignedTo: cleanString((r as Record<string, unknown>)["assignedTo"] ?? (r as Record<string, unknown>)["Nhân viên phụ trách"] ?? (r as Record<string, unknown>)["Người phụ trách"]),
         groupCode: cleanString((r as Record<string, unknown>)['groupCode'] ?? (r as Record<string, unknown>)["Nhóm"]),
         partner: cleanString((r as Record<string, unknown>)['partner'] ?? (r as Record<string, unknown>)["Đối tác"]),
         bankAccount: normalizeNullable(
@@ -178,6 +181,7 @@ export async function POST(request: Request) {
             (r as Record<string, unknown>)["Tài khoản ngân hàng"] ??
             (r as Record<string, unknown>)["Tài khoản  ngân hàng"]
         ),
+        notes: cleanString((r as Record<string, unknown>)["notes"] ?? (r as Record<string, unknown>)["Ghi chú"]),
       };
 
       if (!customerName && !phoneNumber) {
@@ -194,12 +198,28 @@ export async function POST(request: Request) {
       if (typeof nonEmpty.address === "string") updateData.address = nonEmpty.address;
       if (typeof nonEmpty.district === "string") updateData.district = nonEmpty.district;
       if (typeof nonEmpty.area === "string") updateData.area = nonEmpty.area;
+      if (typeof nonEmpty.assignedTo === "string") updateData.assignedTo = nonEmpty.assignedTo;
       if (typeof nonEmpty.groupCode === "string") updateData.groupCode = nonEmpty.groupCode;
       if (typeof nonEmpty.partner === "string") updateData.partner = nonEmpty.partner;
       if (typeof nonEmpty.bankAccount === "string") updateData.bankAccount = nonEmpty.bankAccount;
+      if (typeof nonEmpty.notes === "string") updateData.notes = nonEmpty.notes;
 
       const birthday = parseBirthday(nonEmpty.birthday);
       if (birthday) updateData.birthday = birthday;
+
+      // Resolve assignedTo username to assignedToId if provided
+      let assignedToId: string | null = null;
+      let assignedToName = "Admin";
+      if (typeof nonEmpty.assignedTo === "string" && nonEmpty.assignedTo.trim()) {
+        const user = await prisma.user.findUnique({
+          where: { username: nonEmpty.assignedTo.trim() },
+          select: { id: true, username: true },
+        });
+        if (user) {
+          assignedToId = user.id;
+          assignedToName = user.username;
+        }
+      }
 
       try {
         const existing = await prisma.customer.findUnique({ where: { customerCode }, select: { id: true } });
@@ -208,12 +228,21 @@ export async function POST(request: Request) {
             result.skipped += 1;
             continue;
           }
+          if (assignedToId !== null) {
+            updateData.assignedToId = assignedToId;
+            updateData.assignedTo = assignedToName;
+          }
           await prisma.customer.update({ where: { customerCode }, data: updateData });
           result.updated += 1;
         } else {
           if (!customerName || !phoneNumber) {
             result.invalid += 1;
             result.errors.push({ row: rowIndex, customerCode, message: "Tạo mới cần đủ Tên KH và SĐT." });
+            continue;
+          }
+          if (!mapped.area) {
+            result.invalid += 1;
+            result.errors.push({ row: rowIndex, customerCode, message: "Tạo mới cần Khu vực." });
             continue;
           }
           await prisma.customer.create({
@@ -228,9 +257,10 @@ export async function POST(request: Request) {
               groupCode: mapped.groupCode || null,
               partner: mapped.partner || null,
               bankAccount: mapped.bankAccount || null,
-              status: "MOI",
-              assignedTo: "Admin",
-              assignedToId: null,
+              notes: mapped.notes || null,
+              status: "Mới",
+              assignedTo: assignedToName,
+              assignedToId: assignedToId,
             },
             select: { id: true },
           });

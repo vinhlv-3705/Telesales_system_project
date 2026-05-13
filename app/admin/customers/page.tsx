@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, FileSpreadsheet, Filter, Pencil, RefreshCw, Search, Trash2, Upload, UserPlus, Users, X } from "lucide-react";
 import { motion } from "framer-motion";
+import CustomSelect from "@/components/CustomSelect";
 
 type CustomerRow = {
   id: string;
@@ -187,10 +188,14 @@ function AdminCustomersInner() {
     phoneNumber: "",
     birthday: "",
     address: "",
-    area: "",
+    province: "",
+    district: "",
+    assignedToId: "",
     groupCode: "",
     partner: "",
   });
+
+  const [locations, setLocations] = useState<{ provinces: string[]; districtsByProvince: Record<string, string[]> } | null>(null);
 
   useEffect(() => {
     const fetchAgents = async () => {
@@ -203,7 +208,18 @@ function AdminCustomersInner() {
       }
     };
 
+    const fetchLocations = async () => {
+      try {
+        const res = await fetch("/api/admin/locations", { cache: "no-store" });
+        if (!res.ok) return;
+        setLocations((await res.json()) as { provinces: string[]; districtsByProvince: Record<string, string[]> });
+      } catch {
+        // ignore
+      }
+    };
+
     void fetchAgents();
+    void fetchLocations();
   }, []);
 
   const queryString = useMemo(() => {
@@ -371,7 +387,9 @@ function AdminCustomersInner() {
       phoneNumber: "",
       birthday: "",
       address: "",
-      area: "",
+      province: "",
+      district: "",
+      assignedToId: "",
       groupCode: "",
       partner: "",
     });
@@ -380,6 +398,9 @@ function AdminCustomersInner() {
     const customerCode = createForm.customerCode.trim();
     const customerName = createForm.customerName.trim();
     const phoneNumber = createForm.phoneNumber.trim();
+    const province = createForm.province.trim();
+    const district = createForm.district.trim();
+    const assignedToId = createForm.assignedToId.trim();
 
     if (!customerCode) {
       setError("Vui lòng nhập mã khách hàng.");
@@ -391,6 +412,10 @@ function AdminCustomersInner() {
     }
     if (!phoneNumber) {
       setError("Vui lòng nhập số điện thoại.");
+      return;
+    }
+    if (!province) {
+      setError("Vui lòng chọn Khu vực.");
       return;
     }
 
@@ -406,7 +431,9 @@ function AdminCustomersInner() {
           phoneNumber,
           birthday: createForm.birthday,
           address: createForm.address,
-          area: createForm.area,
+          area: province,
+          district,
+          assignedToId,
           groupCode: createForm.groupCode,
           partner: createForm.partner,
         }),
@@ -921,14 +948,42 @@ function AdminCustomersInner() {
                 </div>
 
                 <div>
+                  <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Khu vực *</label>
+                  <CustomSelect
+                    value={createForm.province}
+                    onChange={(value) =>
+                      setCreateForm((p) => ({
+                        ...p,
+                        province: value,
+                        district: "",
+                      }))
+                    }
+                    options={(locations?.provinces ?? []).map((p) => ({ value: p, label: p }))}
+                    placeholder="Chọn Khu vực"
+                    isDark={isDark}
+                  />
+                </div>
+
+                <div>
                   <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Địa bàn</label>
-                  <input
-                    value={createForm.area}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, area: e.target.value }))}
-                    className={`mt-1 h-11 w-full px-3 rounded-2xl border bg-white/20 backdrop-blur-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 ${
-                      isDark ? "border-white/10 text-white placeholder:text-slate-400" : "border-white/20 text-slate-900 placeholder:text-slate-500"
-                    }`}
-                    placeholder="VD: Thủy Nguyên"
+                  <CustomSelect
+                    value={createForm.district}
+                    onChange={(value) => setCreateForm((p) => ({ ...p, district: value }))}
+                    disabled={!createForm.province}
+                    options={(createForm.province ? locations?.districtsByProvince?.[createForm.province] ?? [] : []).map((d) => ({ value: d, label: d }))}
+                    placeholder={createForm.province ? "Chọn Địa bàn" : "Chọn Khu vực trước"}
+                    isDark={isDark}
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Nhân viên phụ trách</label>
+                  <CustomSelect
+                    value={createForm.assignedToId}
+                    onChange={(value) => setCreateForm((p) => ({ ...p, assignedToId: value }))}
+                    options={[{ value: "", label: "(Không gán - Master)" }, ...agents.map((a) => ({ value: a.id, label: a.username }))]}
+                    placeholder="(Không gán - Master)"
+                    isDark={isDark}
                   />
                 </div>
 
@@ -1257,37 +1312,30 @@ function AdminCustomersInner() {
 
               <div>
                 <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Trạng thái</label>
-                <select
+                <CustomSelect
                   value={editForm.status}
-                  onChange={(e) => setEditForm((p) => ({ ...p, status: e.target.value }))}
-                  className={`mt-1 h-11 w-full px-3 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
-                    isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-300 text-slate-900"
-                  }`}
-                >
-                  <option value="Mới">Mới</option>
-                  <option value="Hẹn gọi lại">Hẹn gọi lại</option>
-                  <option value="Chốt đơn">Chốt đơn</option>
-                  <option value="Từ chối">Từ chối</option>
-                  <option value="Upsell">Upsell</option>
-                </select>
+                  onChange={(value) => setEditForm((p) => ({ ...p, status: value }))}
+                  options={[
+                    { value: "Mới", label: "Mới" },
+                    { value: "Hẹn gọi lại", label: "Hẹn gọi lại" },
+                    { value: "Chốt đơn", label: "Chốt đơn" },
+                    { value: "Từ chối", label: "Từ chối" },
+                    { value: "Upsell", label: "Upsell" },
+                  ]}
+                  placeholder="Chọn trạng thái"
+                  isDark={isDark}
+                />
               </div>
 
               <div>
                 <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Gán cho nhân viên</label>
-                <select
+                <CustomSelect
                   value={editForm.assignedToId}
-                  onChange={(e) => setEditForm((p) => ({ ...p, assignedToId: e.target.value }))}
-                  className={`mt-1 h-11 w-full px-3 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
-                    isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-300 text-slate-900"
-                  }`}
-                >
-                  <option value="">(Bỏ gán)</option>
-                  {agents.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.username}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => setEditForm((p) => ({ ...p, assignedToId: value }))}
+                  options={[{ value: "", label: "(Bỏ gán)" }, ...agents.map((a) => ({ value: a.id, label: a.username }))]}
+                  placeholder="(Bỏ gán)"
+                  isDark={isDark}
+                />
               </div>
             </div>
 

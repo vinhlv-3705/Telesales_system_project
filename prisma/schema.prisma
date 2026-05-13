@@ -20,17 +20,23 @@ enum Role {
 }
 
 model User {
-  id        String    @id @default(cuid())
-  username  String    @unique
-  password  String    @default("password123")
-  role      Role      @default(AGENT)
-  isLocked  Boolean   @default(false)
-  lockedAt  DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id         String    @id @default(cuid())
+  username   String    @unique
+  password   String    @default("password123")
+  fullName   String?   @default("")
+  phoneNumber String?
+  email      String?
+  avatarUrl  String?
+  bio        String?   @db.Text
+  role       Role      @default(AGENT)
+  isLocked   Boolean   @default(false)
+  lockedAt   DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   customers Customer[]
   callLogs  CallLog[]
+  customerAssignments CustomerAssignment[]
 
   @@index([role])
   @@map("user")
@@ -66,6 +72,7 @@ model Customer {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   callLogs     CallLog[]
+  assignments  CustomerAssignment[]
 
   @@index([fullName])
   @@index([phone])
@@ -73,6 +80,22 @@ model Customer {
   @@index([assignedToId])
   @@index([district])
   @@map("cust")
+}
+
+model CustomerAssignment {
+  id         String   @id @default(cuid())
+  customerId String
+  userId     String
+  isPrimary  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, userId])
+  @@index([userId])
+  @@index([customerId])
+  @@map("customer_assignment")
 }
 
 model CallLog {
