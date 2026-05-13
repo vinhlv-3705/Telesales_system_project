@@ -5,6 +5,7 @@
   --foreground: #0f172a;
   --surface: rgba(255, 255, 255, 0.82);
   --surface-border: rgba(148, 163, 184, 0.35);
+  --input-bg: #f8fafc;
   --blob-1: rgba(56, 189, 248, 0.28);
   --blob-2: rgba(59, 130, 246, 0.22);
   --blob-3: rgba(14, 165, 233, 0.2);
@@ -71,9 +72,19 @@
 
 @layer components {
   .ui-card {
-    @apply rounded-3xl border shadow-xl;
+    @apply rounded-3xl border;
     background: var(--surface);
     border-color: var(--surface-border);
+  }
+
+  :root:not([data-theme="dark"]) .ui-card {
+    @apply shadow-sm;
+    background: #ffffff;
+    border-color: rgba(203, 213, 225, 0.8);
+  }
+
+  :root[data-theme="dark"] .ui-card {
+    @apply shadow-xl;
   }
 
   .ui-card-soft {
@@ -111,6 +122,12 @@
     border-color: color-mix(in srgb, var(--surface-border) 95%, transparent);
     color: var(--foreground);
     --tw-ring-color: var(--ring);
+  }
+
+  :root:not([data-theme="dark"]) .ui-input {
+    background: var(--input-bg);
+    border-color: rgba(203, 213, 225, 1);
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
   }
 
   .ui-input::placeholder {

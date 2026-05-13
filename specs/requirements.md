@@ -77,7 +77,11 @@ Hệ thống là một Telesales CRM tối giản nhằm:
   - `username`, `password`, `role`
   - `isLocked`, `lockedAt` (phục vụ admin lock/unlock)
 - **Customer**
-  - mã khách, tên, SĐT, địa bàn, địa chỉ
+  - mã khách, tên, SĐT, địa chỉ
+  - địa lý:
+    - `district`: ĐỊA BÀN (quận/huyện)
+    - `area`: KHU VỰC (tỉnh/thành)
+  - `bankAccount`: STK ngân hàng (nullable)
   - `status` đang lưu dạng text (có thể là nhãn tiếng Việt hoặc enum code tuỳ dữ liệu)
   - `assignedToId` liên kết sang `User`
   - Chăm sóc/đơn hàng:

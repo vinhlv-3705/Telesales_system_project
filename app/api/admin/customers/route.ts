@@ -31,9 +31,11 @@ export async function GET(request: Request) {
       fullName: string;
       phone: string;
       address: string | null;
+      district?: string | null;
       area: string | null;
       groupCode: string | null;
       partner: string | null;
+      bankAccount?: string | null;
       status: string;
       assignedToUser?: DbAssignedUser | null;
       callLogs?: DbCallLog[];
@@ -125,9 +127,11 @@ export async function GET(request: Request) {
           fullName: true,
           phone: true,
           address: true,
+          district: true,
           area: true,
           groupCode: true,
           partner: true,
+          bankAccount: true,
           status: true,
           assignedToUser: { select: { username: true } },
           callLogs: {
@@ -148,9 +152,11 @@ export async function GET(request: Request) {
         customerName: c.fullName,
         phoneNumber: c.phone,
         address: c.address ?? "",
+        district: c.district ?? "",
         area: c.area ?? "",
         groupCode: c.groupCode ?? "",
         partner: c.partner ?? "",
+        bankAccount: c.bankAccount ?? "",
         callStatus,
         lastInteractionAt: latest?.timestamp ? latest.timestamp.toISOString() : "",
         assignedToName: c.assignedToUser?.username ?? "",
@@ -184,9 +190,11 @@ export async function POST(request: Request) {
           phoneNumber?: string;
           birthday?: string;
           address?: string;
+          district?: string;
           area?: string;
           groupCode?: string;
           partner?: string;
+          bankAccount?: string;
           zaloConnected?: boolean;
         }
       | null;
@@ -196,9 +204,11 @@ export async function POST(request: Request) {
     const phoneNumber = (body?.phoneNumber || "").trim();
     const birthdayRaw = (body?.birthday || "").trim();
     const address = (body?.address || "").trim();
+    const district = (body?.district || "").trim();
     const area = (body?.area || "").trim();
     const groupCode = (body?.groupCode || "").trim();
     const partner = (body?.partner || "").trim();
+    const bankAccount = (body?.bankAccount || "").trim();
     const zaloConnected = Boolean(body?.zaloConnected);
 
     const birthday = (() => {
@@ -226,9 +236,11 @@ export async function POST(request: Request) {
           birthday,
           phone: phoneNumber,
           address: address || null,
+          district: district || null,
           area: area || null,
           groupCode: groupCode || null,
           partner: partner || null,
+          bankAccount: bankAccount || null,
           zaloConnected,
           status: "MOI",
           assignedTo: "Admin",
@@ -240,9 +252,11 @@ export async function POST(request: Request) {
           fullName: true,
           phone: true,
           address: true,
+          district: true,
           area: true,
           groupCode: true,
           partner: true,
+          bankAccount: true,
           status: true,
           zaloConnected: true,
         },
@@ -268,9 +282,11 @@ export async function POST(request: Request) {
           customerName: createdRow.fullName,
           phoneNumber: createdRow.phone,
           address: createdRow.address ?? "",
+          district: (createdRow as { district?: string | null }).district ?? "",
           area: createdRow.area ?? "",
           groupCode: createdRow.groupCode ?? "",
           partner: createdRow.partner ?? "",
+          bankAccount: (createdRow as { bankAccount?: string | null }).bankAccount ?? "",
           callStatus: normalizeStatusLabel(createdRow.status),
           zaloConnected: Boolean(createdRow.zaloConnected),
           lastInteractionAt: "",

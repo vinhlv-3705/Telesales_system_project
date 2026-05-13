@@ -17,14 +17,14 @@ export interface CallFormData {
 
 interface CallLogFormProps {
   formData: CallFormData;
-  setFormData: (data: CallFormData) => void;
+  setFormData: React.Dispatch<React.SetStateAction<CallFormData>>;
   onSubmit: () => void;
-  onValidationError?: (message: string) => void;
-  isEditing?: boolean;
-  isDark?: boolean;
+  onValidationError: (msg: string) => void;
+  isDark: boolean;
   compact?: boolean;
   isSaving?: boolean;
   saveSucceeded?: boolean;
+  loggedInRole?: string;
 }
 
 export default function CallLogForm({
@@ -32,15 +32,16 @@ export default function CallLogForm({
   setFormData,
   onSubmit,
   onValidationError,
-  isEditing = false,
-  isDark = false,
+  isDark,
   compact = false,
   isSaving = false,
   saveSucceeded = false,
+  loggedInRole,
 }: CallLogFormProps) {
   const revenueRef = useRef<HTMLInputElement | null>(null);
   const callbackDateRef = useRef<HTMLInputElement | null>(null);
   const noteRef = useRef<HTMLTextAreaElement | null>(null);
+  const isEditing = false;
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [productPickerOpen, setProductPickerOpen] = useState(false);
 
@@ -58,8 +59,10 @@ export default function CallLogForm({
   const revenueValue = Number((formData.revenue || "0").replace(/\./g, ""));
   const revenueError = attemptedSubmit && showsRevenue && (formData.revenue.trim() === "" || revenueValue <= 0);
 
-  const inputClasses = `mt-1 block w-full h-11 px-3 rounded-2xl border bg-white/20 text-sm shadow-sm backdrop-blur-2xl transition focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50 ${
-    isDark ? "border-white/10 text-white placeholder-slate-400" : "border-white/20 text-slate-900 placeholder-slate-500"
+  const inputClasses = `mt-1 block w-full h-11 px-3 rounded-2xl border text-sm shadow-sm transition focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
+    isDark
+      ? "bg-white/20 backdrop-blur-2xl border-white/10 text-white placeholder-slate-400"
+      : "bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-500"
   }`;
 
   const inputErrorClasses = "border-rose-400/70 focus:ring-rose-400";
@@ -184,8 +187,10 @@ export default function CallLogForm({
                 title={status.label}
                 className={`h-10 flex-1 rounded-2xl border px-2 text-[11px] font-semibold transition-all flex items-center justify-center gap-1 min-w-0 ${
                   selected
-                    ? `bg-linear-to-r ${status.classes} text-white shadow-[0_12px_30px_rgba(0,0,0,0.18)] border-transparent ring-2 ring-white/40`
-                    : `bg-white/20 ${isDark ? "text-slate-100 bg-white/10 border-white/10" : "text-slate-700 border-white/20"} hover:bg-white/30`
+                    ? `bg-linear-to-r ${status.classes} text-white shadow-[0_12px_30px_rgba(0,0,0,0.18)] border-transparent ring-2 ring-white/40 outline outline-white/20`
+                    : isDark
+                      ? `bg-white/10 border-white/10 text-slate-100 hover:bg-white/15`
+                      : `bg-slate-200/50 border-slate-300 text-slate-700 hover:bg-slate-50`
                 }`}
               >
                 <Icon className="h-3.5 w-3.5 shrink-0" />
@@ -235,8 +240,10 @@ export default function CallLogForm({
             </label>
             <div className="mt-2 flex items-start gap-2">
               <div
-                className={`flex-1 min-h-11 rounded-2xl border bg-white/20 shadow-sm backdrop-blur-2xl px-3 py-2 ${
-                  isDark ? "border-white/10" : "border-white/20"
+                className={`flex-1 min-h-11 rounded-2xl border shadow-sm px-3 py-2 ${
+                  isDark
+                    ? "bg-white/20 backdrop-blur-2xl border-white/10"
+                    : "bg-white border-slate-200/60"
                 }`}
               >
                 {selectedProductNames.length === 0 ? (
@@ -249,7 +256,7 @@ export default function CallLogForm({
                       <span
                         key={name}
                         className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${
-                          isDark ? "bg-white/5 border-white/10 text-slate-100" : "bg-white/45 border-white/60 text-slate-800"
+                          isDark ? "bg-white/5 border-white/10 text-slate-100" : "bg-slate-50 border-slate-200/60 text-slate-800"
                         }`}
                       >
                         <span className="max-w-55 truncate" title={name}>
@@ -280,7 +287,7 @@ export default function CallLogForm({
                 className={`shrink-0 h-11 px-3 rounded-2xl border text-xs font-bold inline-flex items-center gap-2 transition ${
                   isDark
                     ? "bg-white/10 border-white/10 text-slate-100 hover:bg-white/15"
-                    : "bg-white/60 border-white/70 text-slate-700 hover:bg-white/80"
+                    : "bg-slate-800 border-slate-800 text-white hover:bg-slate-900"
                 }`}
                 title="Chọn từ danh mục"
               >
@@ -297,6 +304,7 @@ export default function CallLogForm({
                 open={productPickerOpen}
                 onClose={() => setProductPickerOpen(false)}
                 isDark={isDark}
+                userRole={loggedInRole}
                 selectedIds={[]}
                 onConfirm={(selected: MasterProduct[]) => {
                   const names = selected.map((p) => p.name).filter(Boolean);
@@ -378,7 +386,7 @@ export default function CallLogForm({
       <button
         onClick={validateAndSubmit}
         disabled={isSaving}
-        className={`w-full bg-linear-to-r from-indigo-600 to-purple-600 text-white ${compact ? "py-2.5" : "py-3"} px-4 rounded-2xl hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-0 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed shadow-[0_16px_40px_rgba(99,102,241,0.35)] transition-all`}
+        className={`w-full bg-linear-to-r from-indigo-600 to-purple-600 text-white ${compact ? "py-2.5" : "py-3"} px-4 rounded-2xl hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-0 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all`}
       >
         {isSaving ? (
           <LoaderCircle className="h-5 w-5 mr-2 animate-spin" />

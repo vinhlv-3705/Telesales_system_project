@@ -8,6 +8,7 @@
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint",
+    "db:clone": "node scripts/clone-db.js",
     "mcp": "node context7-server/server.js"
   },
   "dependencies": {
@@ -30,6 +31,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^16.4.5",
     "ts-node": "^10.9.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",

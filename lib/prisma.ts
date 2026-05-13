@@ -2,9 +2,22 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
+const describeDatabaseTarget = (rawUrl: string | undefined) => {
+  if (!rawUrl) return "(missing DATABASE_URL)";
+  try {
+    const url = new URL(rawUrl);
+    const host = url.hostname || "unknown-host";
+    const db = url.pathname?.replace("/", "") || "unknown-db";
+    return `${host}/${db}`;
+  } catch {
+    return "(invalid DATABASE_URL)";
+  }
+};
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
   pgPool: Pool | undefined;
+  prismaLoggedTarget: boolean | undefined;
 };
 
 const createPgPool = () => {
@@ -41,6 +54,13 @@ export const prisma =
         createPgPool(),
     ),
   });
+
+if (process.env.NODE_ENV !== "production" && !globalForPrisma.prismaLoggedTarget) {
+  const appEnv = process.env.APP_ENV;
+  const label = appEnv === "production" ? "PRODUCTION" : "LOCAL";
+  console.log(`[DB] Đang kết nối tới Database ${label}: ${describeDatabaseTarget(process.env.DATABASE_URL)}`);
+  globalForPrisma.prismaLoggedTarget = true;
+}
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;

@@ -16,7 +16,7 @@ export default function CurrentlyCalling({ customer, isDark = false }: Currently
         className={`backdrop-blur-xl p-8 rounded-2xl border text-center h-full flex items-center justify-center ${
           isDark
             ? 'bg-slate-900/45 border-slate-700/60'
-            : 'bg-white/40 border-white/60'
+            : 'bg-white border-slate-200/60 shadow-[0_10px_30px_rgba(15,23,42,0.08)]'
         }`}
       >
         <div>
@@ -38,8 +38,8 @@ export default function CurrentlyCalling({ customer, isDark = false }: Currently
       transition={{ duration: 0.3 }}
       className={`backdrop-blur-xl p-6 rounded-2xl border ${
         isDark
-          ? 'bg-gradient-to-br from-blue-900/40 to-slate-900/45 border-blue-700/60'
-          : 'bg-gradient-to-br from-blue-100/60 to-white/40 border-blue-300/60'
+          ? 'bg-linear-to-br from-blue-900/40 to-slate-900/45 border-blue-700/60'
+          : 'bg-white border-slate-200/60 shadow-[0_12px_35px_rgba(15,23,42,0.10)]'
       }`}
     >
       <div className="flex items-center justify-between mb-4">
@@ -78,7 +78,7 @@ export default function CurrentlyCalling({ customer, isDark = false }: Currently
           <div>
             <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Ghi chú trước</p>
             <p className={`text-sm italic ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-              "{customer.note}"
+              &quot;{customer.note}&quot;
             </p>
           </div>
         )}

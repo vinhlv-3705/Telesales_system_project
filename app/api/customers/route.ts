@@ -21,9 +21,11 @@ export async function GET(request: Request) {
       contractSignedAt?: Date | null;
       phone: string;
       address: string | null;
+      district?: string | null;
       area: string | null;
       groupCode: string | null;
       partner: string | null;
+      bankAccount?: string | null;
       notes: string | null;
       status: string;
       callbackTime: string | null;
@@ -104,9 +106,11 @@ export async function GET(request: Request) {
             contractSignedAt: true,
             phone: true,
             address: true,
+            district: true,
             area: true,
             groupCode: true,
             partner: true,
+            bankAccount: true,
             notes: true,
             status: true,
             callbackTime: true,
@@ -132,9 +136,11 @@ export async function GET(request: Request) {
             contractSignedAt: true,
             phone: true,
             address: true,
+            district: true,
             area: true,
             groupCode: true,
             partner: true,
+            bankAccount: true,
             notes: true,
             status: true,
             callbackTime: true,
@@ -181,9 +187,11 @@ export async function GET(request: Request) {
         customerName: customer.fullName,
         phoneNumber: customer.phone,
         address: customer.address ?? "",
+        district: customer.district ?? "",
         area: customer.area ?? "",
         groupCode: customer.groupCode ?? "",
         partner: customer.partner ?? "",
+        bankAccount: customer.bankAccount ?? "",
         birthday: customer.birthday ? customer.birthday.toISOString() : "",
         contractSignedAt: customer.contractSignedAt ? customer.contractSignedAt.toISOString() : "",
         lastOrderAt: customer.lastOrderAt ? customer.lastOrderAt.toISOString() : "",

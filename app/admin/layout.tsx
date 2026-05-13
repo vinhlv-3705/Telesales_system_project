@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ReactNode } from "react";
-import { BarChart3, ChevronDown, LayoutDashboard, LineChart, Users, UserCog } from "lucide-react";
+import { BarChart3, ChevronDown, LayoutDashboard, LineChart, Package, Users, UserCog } from "lucide-react";
 import AdminTopBar from "./_components/AdminTopBar";
 
 const NavLink = ({ href, title, icon }: { href: string; title: string; icon: ReactNode }) => {
@@ -46,6 +46,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 <NavLink href="/admin/dashboard" title="Tổng quan Dashboard" icon={<LayoutDashboard className="h-4 w-4" />} />
                 <ExternalNavLink href="/" title="Màn hình Telesales" icon={<LineChart className="h-4 w-4" />} />
                 <NavLink href="/admin/reports" title="Thống kê & Báo cáo" icon={<BarChart3 className="h-4 w-4" />} />
+                <NavLink href="/admin/products" title="Quản lý mặt hàng" icon={<Package className="h-4 w-4" />} />
                 <details className="group">
                   <summary className="list-none cursor-pointer">
                     <div className="group flex items-center justify-between gap-3 rounded-2xl px-3 py-2.5 border border-[color:var(--surface-border)] bg-[color:var(--surface)] hover:bg-white/35 transition">

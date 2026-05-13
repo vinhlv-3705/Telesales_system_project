@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, Check, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Search, Check, X, Settings } from 'lucide-react';
 
 export type MasterProduct = {
   id: string;
@@ -20,17 +21,21 @@ type Props = {
   open: boolean;
   onClose: () => void;
   isDark?: boolean;
+  userRole?: string;
   selectedIds: string[];
   onConfirm: (selected: MasterProduct[]) => void;
 };
 
-export default function ProductPickerModal({ open, onClose, isDark = false, selectedIds, onConfirm }: Props) {
+export default function ProductPickerModal({ open, onClose, isDark = false, userRole, selectedIds, onConfirm }: Props) {
+  const router = useRouter();
   const [categories, setCategories] = useState<MasterProductCategory[]>([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [activeCategoryId, setActiveCategoryId] = useState<string>('__ALL__');
   const [draftSelected, setDraftSelected] = useState<string[]>(() => selectedIds);
   const panelRef = useRef<HTMLDivElement | null>(null);
+
+  const isAdmin = String(userRole || '').toLowerCase() === 'admin';
 
   useEffect(() => {
     if (!open) return;
@@ -114,6 +119,20 @@ export default function ProductPickerModal({ open, onClose, isDark = false, sele
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      router.push('/admin/products');
+                    }}
+                    className="h-9 px-3 rounded-xl text-xs font-extrabold border border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 transition inline-flex items-center gap-2"
+                    title="Quản lý mặt hàng"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Quản lý mặt hàng
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={clearAll}
