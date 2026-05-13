@@ -40,7 +40,7 @@ export default function CustomerQueue({
         className={`backdrop-blur-xl p-8 rounded-2xl border text-center ${
           isDark
             ? 'bg-slate-900/45 border-slate-700/60 shadow-[0_12px_35px_rgba(2,6,23,0.55)]'
-            : 'bg-white/40 border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
+            : 'bg-white border-slate-200/60 shadow-[0_10px_30px_rgba(15,23,42,0.08)]'
         }`}
       >
         <p className={isDark ? 'text-slate-400' : 'text-slate-600'}>Không có khách hàng nào cần gọi</p>
@@ -66,10 +66,10 @@ export default function CustomerQueue({
               isSelected
                 ? isDark
                   ? 'bg-blue-600/40 border-blue-400 shadow-[0_0_12px_rgba(96,165,250,0.3)]'
-                  : 'bg-blue-100/60 border-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.2)]'
+                  : 'bg-blue-50 border-blue-300 shadow-[0_10px_30px_rgba(59,130,246,0.14)]'
                 : isDark
                   ? 'bg-slate-800/30 border-slate-700/40 hover:bg-slate-800/50'
-                  : 'bg-white/30 border-white/40 hover:bg-white/50'
+                  : 'bg-white border-slate-200/60 shadow-sm hover:shadow hover:bg-slate-50'
             }`}
           >
             <div className="flex items-start justify-between gap-2">

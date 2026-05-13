@@ -21,9 +21,11 @@ export async function GET() {
       "phoneNumber",
       "birthday",
       "address",
+      "district",
       "area",
       "groupCode",
       "partner",
+      "bankAccount",
     ];
 
     const sampleRows = [
@@ -34,9 +36,11 @@ export async function GET() {
         phoneNumber: "0901234567",
         birthday: "1990-01-15",
         address: "123 Đường ABC",
-        area: "Thủy Nguyên",
+        district: "Thủy Nguyên",
+        area: "Hải Phòng",
         groupCode: "NHOM1",
         partner: "PartnerX",
+        bankAccount: "0123456789",
       } as Record<string, string>,
     ];
 

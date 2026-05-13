@@ -115,14 +115,14 @@ export default function CustomerList({ customers, onCall, activeCustomerId, isDa
                 role="button"
                 tabIndex={0}
                 style={{ position: "absolute", top: index * ITEM_HEIGHT, left: 0, right: 0 }}
-                className={`w-full text-left rounded-2xl border p-3 transition-all cursor-pointer select-text ${
+                className={`w-full text-left rounded-2xl border border-b p-3 transition-all cursor-pointer select-text ${
                   customer.id === activeCustomerId
                     ? isDark
                       ? "bg-sky-500/15 border-sky-300/40 shadow-[0_14px_35px_rgba(56,189,248,0.20)]"
-                      : "bg-sky-50/70 border-sky-300/60 shadow-[0_14px_35px_rgba(2,132,199,0.14)]"
+                      : "bg-blue-50 border-slate-200 border-l-4 border-l-blue-600 shadow-[0_14px_35px_rgba(2,132,199,0.14)]"
                     : isDark
                       ? "bg-white/5 border-white/10 hover:bg-white/10"
-                      : "bg-white/35 border-white/20 hover:bg-white/55"
+                      : "bg-white border-slate-200 shadow-sm hover:shadow hover:bg-slate-50"
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">

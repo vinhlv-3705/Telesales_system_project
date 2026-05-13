@@ -23,6 +23,13 @@ const cleanString = (value: unknown) => {
   return String(value).trim();
 };
 
+const normalizeNullable = (value: unknown) => {
+  const raw = cleanString(value);
+  if (!raw) return "";
+  if (raw.toLowerCase() === "nan") return "";
+  return raw;
+};
+
 const pickNonEmpty = <T extends Record<string, unknown>>(input: T, allowedKeys: Array<keyof T>) => {
   const out: Record<string, unknown> = {};
   for (const key of allowedKeys) {
@@ -133,9 +140,11 @@ export async function POST(request: Request) {
       "phoneNumber",
       "birthday",
       "address",
+      "district",
       "area",
       "groupCode",
       "partner",
+      "bankAccount",
     ] as const;
 
     for (let i = 0; i < rows.length; i += 1) {
@@ -158,11 +167,17 @@ export async function POST(request: Request) {
       const mapped = {
         customerName,
         phoneNumber,
-        birthday: cleanString((r as Record<string, unknown>)["birthday"] ?? (r as Record<string, unknown>)["Sinh nhật"]),
-        address: cleanString((r as Record<string, unknown>)["address"] ?? (r as Record<string, unknown>)["Địa chỉ"]),
-        area: cleanString((r as Record<string, unknown>)["area"] ?? (r as Record<string, unknown>)["Địa bàn"]),
-        groupCode: cleanString((r as Record<string, unknown>)["groupCode"] ?? (r as Record<string, unknown>)["Nhóm"]),
-        partner: cleanString((r as Record<string, unknown>)["partner"] ?? (r as Record<string, unknown>)["Đối tác"]),
+        birthday: cleanString((r as Record<string, unknown>)['birthday'] ?? (r as Record<string, unknown>)["Sinh nhật"]),
+        address: cleanString((r as Record<string, unknown>)['address'] ?? (r as Record<string, unknown>)["Địa chỉ"]),
+        district: normalizeNullable((r as Record<string, unknown>)["district"] ?? (r as Record<string, unknown>)["ĐỊA BÀN"] ?? (r as Record<string, unknown>)["Địa bàn"]),
+        area: normalizeNullable((r as Record<string, unknown>)["area"] ?? (r as Record<string, unknown>)["KHU VỰC"] ?? (r as Record<string, unknown>)["Khu vực"]),
+        groupCode: cleanString((r as Record<string, unknown>)['groupCode'] ?? (r as Record<string, unknown>)["Nhóm"]),
+        partner: cleanString((r as Record<string, unknown>)['partner'] ?? (r as Record<string, unknown>)["Đối tác"]),
+        bankAccount: normalizeNullable(
+          (r as Record<string, unknown>)["bankAccount"] ??
+            (r as Record<string, unknown>)["Tài khoản ngân hàng"] ??
+            (r as Record<string, unknown>)["Tài khoản  ngân hàng"]
+        ),
       };
 
       if (!customerName && !phoneNumber) {
@@ -177,9 +192,11 @@ export async function POST(request: Request) {
       if (typeof nonEmpty.customerName === "string") updateData.fullName = nonEmpty.customerName;
       if (typeof nonEmpty.phoneNumber === "string") updateData.phone = nonEmpty.phoneNumber;
       if (typeof nonEmpty.address === "string") updateData.address = nonEmpty.address;
+      if (typeof nonEmpty.district === "string") updateData.district = nonEmpty.district;
       if (typeof nonEmpty.area === "string") updateData.area = nonEmpty.area;
       if (typeof nonEmpty.groupCode === "string") updateData.groupCode = nonEmpty.groupCode;
       if (typeof nonEmpty.partner === "string") updateData.partner = nonEmpty.partner;
+      if (typeof nonEmpty.bankAccount === "string") updateData.bankAccount = nonEmpty.bankAccount;
 
       const birthday = parseBirthday(nonEmpty.birthday);
       if (birthday) updateData.birthday = birthday;
@@ -206,9 +223,11 @@ export async function POST(request: Request) {
               phone: phoneNumber,
               birthday: parseBirthday(mapped.birthday) ?? null,
               address: mapped.address || null,
+              district: mapped.district || null,
               area: mapped.area || null,
               groupCode: mapped.groupCode || null,
               partner: mapped.partner || null,
+              bankAccount: mapped.bankAccount || null,
               status: "MOI",
               assignedTo: "Admin",
               assignedToId: null,

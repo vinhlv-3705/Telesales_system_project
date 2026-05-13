@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState, useEffect, useMemo, useRef, type CSSProperties } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Sun, Moon, LogOut, Phone, Cake, Package, Tag, Copy, ChevronDown, Pin, X, Pencil, Check, CalendarDays } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -56,21 +56,13 @@ export type CustomerCallLog = CustomerListCustomerCallLog & {
 
 export default function Dashboard() {
   const router = useRouter();
-  const [isMounted, setIsMounted] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [isDark, setIsDark] = useState(false);
 
-  useEffect(() => {
-    setIsMounted(true);
-    if (typeof window === 'undefined') return;
-    const savedTheme = localStorage.getItem('expense-tracker-theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const resolved = savedTheme ? savedTheme === 'dark' : prefersDark;
-    setIsDark(resolved);
-  }, []);
-
-  const resolvedIsDark = isMounted ? isDark : false;
+  const resolvedIsDark = isDark;
 
   const bgStyle = useMemo(() => {
+    if (!mounted) return undefined as CSSProperties | undefined;
     return {
       ...(resolvedIsDark
         ? {
@@ -83,19 +75,21 @@ export default function Dashboard() {
             ['--ring' as never]: '#93c5fd',
           }
         : {
-            ['--background' as never]: '#EEF6FF',
-            ['--surface' as never]: 'rgba(255, 255, 255, 0.92)',
-            ['--surface-border' as never]: 'rgba(15, 23, 42, 0.12)',
-            ['--blob-1' as never]: 'rgba(14, 165, 233, 0.14)',
-            ['--blob-2' as never]: 'rgba(99, 102, 241, 0.12)',
-            ['--blob-3' as never]: 'rgba(34, 211, 238, 0.10)',
-            ['--ring' as never]: '#2563eb',
+            ['--background' as never]: '#F1F5F9',
+            ['--surface' as never]: '#FFFFFF',
+            ['--surface-border' as never]: '#CBD5E1',
+            ['--input-bg' as never]: '#F8FAFC',
+            ['--blob-1' as never]: 'rgba(14, 165, 233, 0.10)',
+            ['--blob-2' as never]: 'rgba(99, 102, 241, 0.10)',
+            ['--blob-3' as never]: 'rgba(34, 211, 238, 0.08)',
+            ['--ring' as never]: '#3B82F6',
           }),
     } as CSSProperties;
-  }, [resolvedIsDark]);
+  }, [mounted, resolvedIsDark]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (!mounted) return;
 
     const root = document.documentElement;
     const keys = ['--background', '--surface', '--surface-border', '--blob-1', '--blob-2', '--blob-3'] as const;
@@ -121,7 +115,26 @@ export default function Dashboard() {
         root.style.removeProperty(key);
       }
     };
-  }, [bgStyle, resolvedIsDark]);
+  }, [bgStyle, mounted, resolvedIsDark]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setMounted(true), 0);
+    return () => clearTimeout(timeout);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    try {
+      const savedTheme = localStorage.getItem('expense-tracker-theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const next = savedTheme ? savedTheme === 'dark' : prefersDark;
+      const timeout = setTimeout(() => setIsDark(next), 0);
+      return () => clearTimeout(timeout);
+    } catch {
+      const timeout = setTimeout(() => setIsDark(false), 0);
+      return () => clearTimeout(timeout);
+    }
+  }, [mounted]);
   const [callLogs, setCallLogs] = useState<CustomerCallLog[]>([]);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(true);
   const [customerLoadError, setCustomerLoadError] = useState<string | null>(null);
@@ -155,36 +168,43 @@ export default function Dashboard() {
   const [selectedAreaKey, setSelectedAreaKey] = useState<string>('__ALL__');
   const [areaDropdownOpen, setAreaDropdownOpen] = useState(false);
   const [areaSearch, setAreaSearch] = useState('');
-  const [pinnedAreaKeys, setPinnedAreaKeys] = useState<string[]>(() => {
-    try {
-      if (typeof window === 'undefined') return [];
-      const raw = window.localStorage.getItem('telesales_pinned_areas');
-      if (!raw) return [];
-      const parsed = JSON.parse(raw) as unknown;
-      if (!Array.isArray(parsed)) return [];
-      return parsed.filter((v) => typeof v === 'string') as string[];
-    } catch {
-      return [];
-    }
-  });
+  const [pinnedAreaKeys, setPinnedAreaKeys] = useState<string[]>([]);
+  const [selectedDistrictKey, setSelectedDistrictKey] = useState<string>('__ALL__');
   const areaDropdownRef = useRef<HTMLDivElement | null>(null);
   const contractSignedInputRef = useRef<HTMLInputElement | null>(null);
   const birthdayInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    if (!isMounted) return;
+    if (typeof window === 'undefined') return;
+    if (!mounted) return;
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
     localStorage.setItem('expense-tracker-theme', isDark ? 'dark' : 'light');
-  }, [isDark, isMounted]);
+  }, [isDark, mounted]);
 
   useEffect(() => {
-    if (!isMounted) return;
+    if (typeof window === 'undefined') return;
+    if (!mounted) return;
     try {
-      localStorage.setItem('telesales_pinned_areas', JSON.stringify(pinnedAreaKeys));
+      const raw = window.localStorage.getItem('telesales_pinned_areas');
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) return;
+      const next = parsed.filter((v) => typeof v === 'string') as string[];
+      setPinnedAreaKeys(next);
     } catch {
       // ignore
     }
-  }, [isMounted, pinnedAreaKeys]);
+  }, [mounted]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!mounted) return;
+    try {
+      window.localStorage.setItem('telesales_pinned_areas', JSON.stringify(pinnedAreaKeys));
+    } catch {
+      // ignore
+    }
+  }, [pinnedAreaKeys, mounted]);
 
   useEffect(() => {
     if (!areaDropdownOpen) return;
@@ -199,14 +219,18 @@ export default function Dashboard() {
     return () => document.removeEventListener('mousedown', handlePointerDown);
   }, [areaDropdownOpen]);
 
-  const locationKeyOf = (value: string) => {
+  useEffect(() => {
+    setSelectedDistrictKey('__ALL__');
+  }, [selectedAreaKey]);
+
+  const locationKeyOf = useCallback((value: string) => {
     return value
       .trim()
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/\s+/g, ' ');
-  };
+  }, []);
 
   const provinceKeySet = useMemo(() => {
     const provinces = [
@@ -296,9 +320,9 @@ export default function Dashboard() {
     for (const p of provinces) set.add(locationKeyOf(p));
     for (const [alias] of aliases) set.add(locationKeyOf(alias));
     return set;
-  }, []);
+  }, [locationKeyOf]);
 
-  const canonicalProvinceLabel = (value: string) => {
+  const canonicalProvinceLabel = useCallback((value: string) => {
     const raw = (value || '').trim();
     if (!raw) return '';
     const key = locationKeyOf(raw);
@@ -310,9 +334,9 @@ export default function Dashboard() {
     if (key.includes('can tho')) return 'Cần Thơ';
     if (key.includes('thua thien') && key.includes('hue')) return 'Thừa Thiên Huế';
     return raw;
-  };
+  }, [locationKeyOf]);
 
-  const deriveProvinceOrCity = (log: CustomerCallLog) => {
+  const deriveProvinceOrCity = useCallback((log: CustomerCallLog) => {
     const fromArea = (log.area || '').trim();
     const address = (log.address || '').trim();
 
@@ -337,7 +361,33 @@ export default function Dashboard() {
 
     const fallback = areaClean || addressLast || fromArea;
     return fallback.trim() || 'Khác';
-  };
+  }, [canonicalProvinceLabel, locationKeyOf, provinceKeySet]);
+
+  const deriveDistrict = useCallback(
+    (log: CustomerCallLog) => {
+      const rawDistrict = ((log as unknown as { district?: string | null }).district || '').trim();
+      if (rawDistrict) return rawDistrict;
+
+      const address = (log.address || '').trim();
+      if (!address) return '';
+      const parts = address
+        .split(',')
+        .map((p) => p.trim())
+        .filter(Boolean);
+      if (parts.length < 2) return '';
+
+      // Heuristic: address often ends with province/city; district is the segment before that.
+      const maybeDistrict = parts[parts.length - 2] ?? '';
+      return maybeDistrict.trim();
+    },
+    []
+  );
+
+  const canonicalDistrictLabel = useCallback((value: string) => {
+    const raw = (value || '').trim();
+    if (!raw) return '';
+    return raw.replace(/^\s*(huy[eệ]n|qu[aậ]n|th[ịi]\s*x[aã]|tx\.?|phu[oờ]ng|x[aã]|th[ịi]\s*tr[aấ]n)\s+/i, '').trim() || raw;
+  }, []);
 
   useEffect(() => {
     const fetchMe = async () => {
@@ -602,6 +652,34 @@ export default function Dashboard() {
     return options;
   }, [areaFacets, areaSearch]);
 
+  const districtFacets = useMemo(() => {
+    if (selectedAreaKey === '__ALL__') return [] as Array<{ key: string; label: string; count: number }>;
+    const map = new Map<string, { key: string; label: string; count: number }>;
+    for (const log of baseFilteredCallLogs) {
+      const provinceLabel = deriveProvinceOrCity(log);
+      if (provinceLabel.toLowerCase() !== selectedAreaKey) continue;
+      const districtLabel = canonicalDistrictLabel(deriveDistrict(log));
+      if (!districtLabel) continue;
+      const key = locationKeyOf(districtLabel);
+      const existing = map.get(key);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        map.set(key, { key, label: districtLabel, count: 1 });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return a.label.localeCompare(b.label, 'vi');
+    });
+  }, [baseFilteredCallLogs, canonicalDistrictLabel, deriveDistrict, deriveProvinceOrCity, locationKeyOf, selectedAreaKey]);
+
+  const selectedDistrictLabel = useMemo(() => {
+    if (selectedAreaKey === '__ALL__') return 'Chọn khu vực trước';
+    if (selectedDistrictKey === '__ALL__') return 'Tất cả địa bàn';
+    return districtFacets.find((d) => d.key === selectedDistrictKey)?.label ?? 'Tất cả địa bàn';
+  }, [districtFacets, selectedAreaKey, selectedDistrictKey]);
+
   const togglePinArea = (key: string) => {
     setPinnedAreaKeys((prev) => {
       if (prev.includes(key)) return prev.filter((v) => v !== key);
@@ -610,19 +688,26 @@ export default function Dashboard() {
   };
 
   const filteredCallLogs = useMemo(() => {
-    if (selectedAreaKey === '__ALL__') return baseFilteredCallLogs;
-    return baseFilteredCallLogs.filter((log) => {
-      const label = deriveProvinceOrCity(log);
-      return label.toLowerCase() === selectedAreaKey;
-    });
-  }, [baseFilteredCallLogs, deriveProvinceOrCity, selectedAreaKey]);
+    const byProvince =
+      selectedAreaKey === '__ALL__'
+        ? baseFilteredCallLogs
+        : baseFilteredCallLogs.filter((log) => deriveProvinceOrCity(log).toLowerCase() === selectedAreaKey);
+
+    if (selectedAreaKey === '__ALL__' || selectedDistrictKey === '__ALL__') return byProvince;
+    return byProvince.filter((log) => locationKeyOf(canonicalDistrictLabel(deriveDistrict(log))) === selectedDistrictKey);
+  }, [baseFilteredCallLogs, canonicalDistrictLabel, deriveDistrict, deriveProvinceOrCity, locationKeyOf, selectedAreaKey, selectedDistrictKey]);
 
   const scopedLogsForCounts = useMemo(() => {
     const areaKey = selectedAreaKey;
 
-    if (areaKey === '__ALL__') return searchFilteredCallLogs;
-    return searchFilteredCallLogs.filter((log) => deriveProvinceOrCity(log).toLowerCase() === areaKey);
-  }, [deriveProvinceOrCity, searchFilteredCallLogs, selectedAreaKey]);
+    const byProvince =
+      areaKey === '__ALL__'
+        ? searchFilteredCallLogs
+        : searchFilteredCallLogs.filter((log) => deriveProvinceOrCity(log).toLowerCase() === areaKey);
+
+    if (areaKey === '__ALL__' || selectedDistrictKey === '__ALL__') return byProvince;
+    return byProvince.filter((log) => locationKeyOf(canonicalDistrictLabel(deriveDistrict(log))) === selectedDistrictKey);
+  }, [canonicalDistrictLabel, deriveDistrict, deriveProvinceOrCity, locationKeyOf, searchFilteredCallLogs, selectedAreaKey, selectedDistrictKey]);
 
   const countNew = useMemo(
     () => scopedLogsForCounts.filter((log) => log.callStatus === 'Mới').length,
@@ -832,6 +917,12 @@ export default function Dashboard() {
     setInsightTab('history');
     setActiveCustomerId(customer.id);
     setResumeProcessedEditing(false);
+    setEditingCustomerDates(false);
+    setDraftBirthday(((customer.birthday || '') as string).trim() ? ((customer.birthday || '') as string).trim().slice(0, 10) : '');
+    setDraftContractSignedAt(
+      ((customer.contractSignedAt || '') as string).trim() ? ((customer.contractSignedAt || '') as string).trim().slice(0, 10) : ''
+    );
+    setDraftZaloConnected(Boolean(customer.zaloConnected));
     setFormData((prev) => ({
       ...prev,
       customerName: customer.customerName,
@@ -885,6 +976,14 @@ export default function Dashboard() {
     return raw ? raw.slice(0, 10) : '';
   });
   const [draftZaloConnected, setDraftZaloConnected] = useState<boolean>(() => Boolean(activeCustomer?.zaloConnected));
+
+  const syncCustomerDateDraftsFromActiveCustomer = () => {
+    const nextBirthday = (activeCustomer?.birthday || '').trim();
+    const nextContract = ((activeCustomer as unknown as { contractSignedAt?: string | null } | null)?.contractSignedAt || '').trim();
+    setDraftBirthday(nextBirthday ? nextBirthday.slice(0, 10) : '');
+    setDraftContractSignedAt(nextContract ? nextContract.slice(0, 10) : '');
+    setDraftZaloConnected(Boolean(activeCustomer?.zaloConnected));
+  };
 
   const saveCustomerDates = async () => {
     if (!activeCustomer?.id) return;
@@ -1012,7 +1111,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="h-screen px-4 py-3 md:px-5 overflow-hidden" style={bgStyle}>
+    <div className="h-screen px-4 py-3 md:px-5 overflow-hidden bg-background" style={bgStyle}>
       <div className="max-w-full h-full">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -1029,20 +1128,24 @@ export default function Dashboard() {
           </h1>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setIsDark((prev) => !prev)}
-              className={
-                resolvedIsDark
-                  ? 'h-10 px-3 rounded-2xl border border-white/10 bg-slate-900/35 hover:bg-slate-900/45 transition inline-flex items-center gap-2 text-sm font-bold text-slate-100'
-                  : 'h-10 px-3 rounded-2xl border border-white/70 bg-white/65 hover:bg-white/80 transition inline-flex items-center gap-2 text-sm font-bold text-slate-800'
-              }
-              title="Chuyển sáng/tối"
-              aria-label="Chuyển sáng/tối"
-            >
-              {resolvedIsDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              {resolvedIsDark ? 'Light' : 'Dark'}
-            </button>
+            {mounted ? (
+              <button
+                type="button"
+                onClick={() => setIsDark((prev) => !prev)}
+                className={
+                  resolvedIsDark
+                    ? 'h-10 px-3 rounded-2xl border border-white/10 bg-slate-900/35 hover:bg-slate-900/45 transition inline-flex items-center gap-2 text-sm font-bold text-slate-100'
+                    : 'h-10 px-3 rounded-2xl border border-slate-200/60 bg-white shadow-sm hover:shadow transition inline-flex items-center gap-2 text-sm font-bold text-slate-700'
+                }
+                title="Chuyển sáng/tối"
+                aria-label="Chuyển sáng/tối"
+              >
+                {resolvedIsDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                {resolvedIsDark ? 'Light' : 'Dark'}
+              </button>
+            ) : (
+              <div className="h-10 w-24 rounded-2xl border border-slate-200/60 bg-white" aria-hidden="true" />
+            )}
 
             <motion.button
               whileHover={{ scale: 1.03 }}
@@ -1064,7 +1167,7 @@ export default function Dashboard() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search name or phone"
-                  className="ui-input pl-10 pr-3"
+                  className={`ui-input pl-10 pr-3 ${isDark ? '' : 'bg-white border-slate-300 placeholder-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'}`}
                 />
               </div>
 
@@ -1081,7 +1184,7 @@ export default function Dashboard() {
                   className={`w-full h-10 rounded-xl border px-3 text-sm font-bold inline-flex items-center justify-between gap-2 transition ${
                     isDark
                       ? 'bg-white/5 border-white/10 text-slate-100 hover:bg-white/10'
-                      : 'bg-white/55 border-white/65 text-slate-900 hover:bg-white/75'
+                      : 'bg-white border-slate-300 text-slate-900 hover:bg-slate-50'
                   }`}
                   aria-haspopup="listbox"
                   aria-expanded={areaDropdownOpen}
@@ -1092,68 +1195,96 @@ export default function Dashboard() {
                   </span>
                 </button>
 
-                {pinnedAreas.length > 0 && (
-                  <div className="mt-2 flex items-center gap-2 overflow-x-auto ui-scrollbar pb-1">
-                    {pinnedAreas.slice(0, 6).map((facet) => (
-                      <div
-                        key={`pin-${facet.key}`}
-                        onClick={() => setSelectedAreaKey(facet.key)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            setSelectedAreaKey(facet.key);
-                          }
-                        }}
-                        role="button"
-                        tabIndex={0}
-                        className={`shrink-0 h-8 rounded-full px-3 text-[12px] font-bold border transition-all inline-flex items-center gap-2 ${
-                          selectedAreaKey === facet.key
-                            ? isDark
-                              ? 'bg-white/15 border-white/25 text-slate-100'
-                              : 'bg-white/70 border-white/60 text-slate-900'
-                            : isDark
-                              ? 'bg-white/5 border-white/10 text-slate-200 hover:bg-white/10'
-                              : 'bg-white/30 border-white/20 text-slate-700 hover:bg-white/45'
-                        }`}
-                        title={facet.label}
-                      >
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPinnedAreaKeys((prev) => prev.filter((v) => v !== facet.key));
-                            setSelectedAreaKey((prev) => (prev === facet.key ? '__ALL__' : prev));
-                          }}
-                          className={`inline-flex items-center justify-center rounded-full h-6 w-6 border transition ${
-                            isDark
-                              ? 'bg-amber-500/15 border-amber-400/30 text-amber-200 hover:bg-amber-500/20'
-                              : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
-                          }`}
-                          aria-label="Bỏ ghim khu vực"
-                          title="Bỏ ghim"
-                        >
-                          <Pin className="h-3.5 w-3.5" />
-                        </button>
-                        <span className="max-w-36 truncate">{facet.label}</span>
-                        <span
-                          className={`inline-flex items-center justify-center min-w-6 h-5 px-1.5 rounded-full text-[11px] font-black border ${
-                            isDark ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-white/40 border-white/60 text-slate-700'
-                          }`}
-                          title="Số khách trong khu vực này"
-                        >
-                          {facet.count}
-                        </span>
-                      </div>
-                    ))}
+                <div className="mt-2">
+                  <div className={`text-[11px] font-black uppercase tracking-[0.14em] mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Địa bàn
                   </div>
-                )}
+                  <select
+                    value={selectedDistrictKey}
+                    onChange={(e) => setSelectedDistrictKey(e.target.value)}
+                    disabled={selectedAreaKey === '__ALL__'}
+                    className={`ui-input w-full ${isDark ? '' : 'bg-white border-slate-300'} ${selectedAreaKey === '__ALL__' ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    title={selectedDistrictLabel}
+                  >
+                    {selectedAreaKey === '__ALL__' ? (
+                      <option value="__ALL__">Chọn khu vực trước</option>
+                    ) : (
+                      <>
+                        <option value="__ALL__">Tất cả địa bàn</option>
+                        {districtFacets.map((d) => (
+                          <option key={d.key} value={d.key}>
+                            {d.label} ({d.count})
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                <div suppressHydrationWarning>
+                  {pinnedAreas.length > 0 && (
+                    <div className="mt-2 flex items-center gap-2 overflow-x-auto ui-scrollbar pb-1">
+                      {pinnedAreas.slice(0, 6).map((facet) => (
+                        <div
+                          key={`pin-${facet.key}`}
+                          onClick={() => setSelectedAreaKey(facet.key)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setSelectedAreaKey(facet.key);
+                            }
+                          }}
+                          role="button"
+                          tabIndex={0}
+                          className={`shrink-0 h-8 rounded-full px-3 text-[12px] font-bold border transition-all inline-flex items-center gap-2 ${
+                            selectedAreaKey === facet.key
+                              ? isDark
+                                ? 'bg-white/15 border-white/25 text-slate-100'
+                                : 'bg-slate-200 border-slate-300 text-slate-900'
+                              : isDark
+                                ? 'bg-white/5 border-white/10 text-slate-200 hover:bg-white/10'
+                                : 'bg-slate-200/60 border-slate-300 text-slate-700 hover:bg-slate-200'
+                          }`}
+                          title={facet.label}
+                        >
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPinnedAreaKeys((prev) => prev.filter((v) => v !== facet.key));
+                              setSelectedAreaKey((prev) => (prev === facet.key ? '__ALL__' : prev));
+                            }}
+                            className={`inline-flex items-center justify-center rounded-full h-6 w-6 border transition ${
+                              isDark
+                                ? 'bg-amber-500/15 border-amber-400/30 text-amber-200 hover:bg-amber-500/20'
+                                : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
+                            }`}
+                            aria-label="Bỏ ghim khu vực"
+                            title="Bỏ ghim"
+                          >
+                            <Pin className="h-3.5 w-3.5" />
+                          </button>
+                          <span className="max-w-36 truncate">{facet.label}</span>
+                          <span
+                            className={`inline-flex items-center justify-center min-w-6 h-5 px-1.5 rounded-full text-[11px] font-black border ${
+                              isDark ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-slate-50 border-slate-300 text-slate-700'
+                            }`}
+                            title="Số khách trong khu vực này"
+                          >
+                            {facet.count}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 {areaDropdownOpen && (
                   <div
                     className={`relative mt-2 rounded-2xl border p-3 shadow-lg ${
                       isDark
                         ? 'bg-slate-900/95 border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.55)]'
-                        : 'bg-white/95 border-white/70 shadow-[0_20px_60px_rgba(15,23,42,0.15)]'
+                        : 'bg-white border-slate-300 shadow-[0_20px_60px_rgba(15,23,42,0.15)]'
                     }`}
                     role="listbox"
                   >
@@ -1173,7 +1304,7 @@ export default function Dashboard() {
                             className={`absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg border inline-flex items-center justify-center transition ${
                               isDark
                                 ? 'bg-white/5 border-white/10 hover:bg-white/10'
-                                : 'bg-white/40 border-white/60 hover:bg-white/65'
+                                : 'bg-white border-slate-300 hover:bg-slate-50'
                             }`}
                             aria-label="Clear search"
                           >
@@ -1197,7 +1328,7 @@ export default function Dashboard() {
                               : 'bg-slate-900/5 border-slate-200 text-slate-900'
                             : isDark
                               ? 'bg-white/5 border-white/10 text-slate-200 hover:bg-white/10'
-                              : 'bg-white/50 border-white/70 text-slate-700 hover:bg-white/70'
+                              : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
                         }`}
                       >
                         <span className="truncate">Tất cả khu vực</span>
@@ -1225,7 +1356,7 @@ export default function Dashboard() {
                                       : 'bg-slate-900/5 border-slate-200'
                                     : isDark
                                       ? 'bg-white/5 border-white/10 hover:bg-white/10'
-                                      : 'bg-white/50 border-white/70 hover:bg-white/70'
+                                      : 'bg-white border-slate-300 hover:bg-slate-50'
                                 }`}
                               >
                                 <button
@@ -1276,7 +1407,7 @@ export default function Dashboard() {
                   <select
                     value={adminAssignedToId}
                     onChange={(e) => setAdminAssignedToId(e.target.value)}
-                    className="ui-input"
+                    className={`ui-input ${isDark ? '' : 'bg-white border-slate-300'}`}
                   >
                     <option value="">Tất cả nhân viên</option>
                     {agentOptions.map((agent) => (
@@ -1461,7 +1592,13 @@ export default function Dashboard() {
           </section>
 
           <section className="h-full flex flex-col gap-3 overflow-hidden">
-            <div className={`ui-card p-5 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+            <div
+              className={`p-5 ${
+                isDark
+                  ? 'ui-card text-slate-100'
+                  : 'bg-white border border-slate-300 rounded-2xl shadow-sm text-slate-900'
+              }`}
+            >
               <p className={`text-xs uppercase tracking-[0.15em] mb-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 Currently Calling
               </p>
@@ -1481,7 +1618,7 @@ export default function Dashboard() {
                     <div className="grid gap-2 grid-cols-1 md:grid-cols-3 flex-1 min-w-0">
                       <div
                         className={`rounded-2xl border px-3 py-1.5 text-sm ${
-                          isDark ? 'bg-white/5 border-white/10' : 'bg-white/35 border-white/30'
+                          isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'
                         }`}
                       >
                         <div className={`text-[11px] font-bold tracking-wide ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -1517,7 +1654,7 @@ export default function Dashboard() {
                                 className={`pointer-events-none h-7 w-full rounded-xl px-2 text-xs font-semibold border inline-flex items-center ${
                                   isDark
                                     ? 'bg-slate-950/30 border-white/10 text-slate-100'
-                                    : 'bg-white/60 border-white/60 text-slate-900'
+                                    : 'bg-slate-50 border-slate-200 text-slate-900'
                                 }`}
                               >
                                 {draftContractSignedAt
@@ -1531,7 +1668,7 @@ export default function Dashboard() {
 
                       <div
                         className={`rounded-2xl border px-3 py-1.5 text-sm ${
-                          isDark ? 'bg-white/5 border-white/10' : 'bg-white/35 border-white/30'
+                          isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'
                         }`}
                       >
                         <div className={`text-[11px] font-bold tracking-wide ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -1567,7 +1704,7 @@ export default function Dashboard() {
                                 className={`pointer-events-none h-7 w-full rounded-xl px-2 text-xs font-semibold border inline-flex items-center ${
                                   isDark
                                     ? 'bg-slate-950/30 border-white/10 text-slate-100'
-                                    : 'bg-white/60 border-white/60 text-slate-900'
+                                    : 'bg-slate-50 border-slate-200 text-slate-900'
                                 }`}
                               >
                                 {draftBirthday ? draftBirthday.split('-').reverse().join('/') : 'Chọn ngày'}
@@ -1579,7 +1716,7 @@ export default function Dashboard() {
 
                       <div
                         className={`rounded-2xl border px-3 py-1.5 text-sm ${
-                          isDark ? 'bg-white/5 border-white/10' : 'bg-white/35 border-white/30'
+                          isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'
                         }`}
                       >
                         <div className={`text-[11px] font-bold tracking-wide ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -1598,7 +1735,7 @@ export default function Dashboard() {
                               className={`h-7 w-32 max-w-full rounded-xl px-2 text-xs font-semibold outline-none border ${
                                 isDark
                                   ? 'bg-slate-950/30 border-white/10 text-slate-100'
-                                  : 'bg-white/60 border-white/60 text-slate-900'
+                                  : 'bg-slate-50 border-slate-200 text-slate-900'
                               }`}
                             >
                               <option value="connected">Đã kết nối</option>
@@ -1612,9 +1749,12 @@ export default function Dashboard() {
                     {!editingCustomerDates ? (
                       <button
                         type="button"
-                        onClick={() => setEditingCustomerDates(true)}
+                        onClick={() => {
+                          syncCustomerDateDraftsFromActiveCustomer();
+                          setEditingCustomerDates(true);
+                        }}
                         className={`shrink-0 inline-flex items-center justify-center rounded-xl border h-9 w-9 transition ${
-                          isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/35 border-white/50 hover:bg-white/55'
+                          isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white border-slate-300 hover:bg-slate-50'
                         }`}
                         title="Sửa ngày ký hợp đồng / ngày sinh / Zalo"
                         aria-label="Sửa ngày ký hợp đồng / ngày sinh / Zalo"
@@ -1638,9 +1778,12 @@ export default function Dashboard() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setEditingCustomerDates(false)}
+                          onClick={() => {
+                            syncCustomerDateDraftsFromActiveCustomer();
+                            setEditingCustomerDates(false);
+                          }}
                           className={`inline-flex items-center justify-center rounded-xl border h-9 w-9 transition ${
-                            isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/35 border-white/50 hover:bg-white/55'
+                            isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white border-slate-300 hover:bg-slate-50'
                           }`}
                           title="Hủy"
                           aria-label="Hủy"
@@ -1654,7 +1797,7 @@ export default function Dashboard() {
                 <div className="shrink-0 inline-flex flex-col items-end">
                   <div
                     className={`inline-flex flex-col items-end gap-1 rounded-xl border px-2.5 py-1 text-sm ${
-                      isDark ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-white/45 border-white/60 text-slate-700'
+                      isDark ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700'
                     }`}
                   >
                     <div className={`text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
@@ -1669,7 +1812,7 @@ export default function Dashboard() {
                         className={`ml-1 inline-flex items-center justify-center rounded-lg border h-7 w-7 transition ${
                           isDark
                             ? 'bg-white/5 border-white/10 hover:bg-white/10'
-                            : 'bg-white/35 border-white/50 hover:bg-white/55'
+                            : 'bg-white border-slate-300 hover:bg-slate-50'
                         }`}
                         title="Copy số điện thoại"
                         aria-label="Copy số điện thoại"
@@ -1781,10 +1924,10 @@ export default function Dashboard() {
                   onClick={() => setInsightTab('history')}
                   className={`rounded-xl py-2 text-sm font-semibold border ${
                     insightTab === 'history'
-                      ? 'bg-linear-to-r from-blue-600 to-sky-600 text-white border-transparent'
+                      ? 'bg-blue-600 text-white border-transparent'
                       : isDark
                         ? 'bg-slate-800/50 text-slate-200 border-slate-600'
-                        : 'bg-white/50 text-slate-700 border-white/70'
+                        : 'bg-slate-100 text-slate-700 border-slate-300'
                   }`}
                 >
                   Lịch sử cuộc gọi
@@ -1794,10 +1937,10 @@ export default function Dashboard() {
                   onClick={() => setInsightTab('stats')}
                   className={`rounded-xl py-2 text-sm font-semibold border ${
                     insightTab === 'stats'
-                      ? 'bg-linear-to-r from-violet-600 to-purple-600 text-white border-transparent'
+                      ? 'bg-blue-600 text-white border-transparent'
                       : isDark
                         ? 'bg-slate-800/50 text-slate-200 border-slate-600'
-                        : 'bg-white/50 text-slate-700 border-white/70'
+                        : 'bg-slate-100 text-slate-700 border-slate-300'
                   }`}
                 >
                   Thống kê cá nhân
@@ -1810,7 +1953,7 @@ export default function Dashboard() {
                     <div
                       key={item.id}
                       className={`rounded-xl p-3 border ${
-                        isDark ? 'bg-slate-800/40 border-slate-700/60 text-slate-200' : 'bg-white/45 border-white/60 text-slate-700'
+                        isDark ? 'bg-slate-800/40 border-slate-700/60 text-slate-200' : 'bg-white border-slate-200 text-slate-700'
                       }`}
                     >
                       <div className="text-xs opacity-80">{new Date(item.timestamp).toLocaleString('vi-VN')}</div>
@@ -1826,7 +1969,7 @@ export default function Dashboard() {
                   ))}
                   {customerCallHistory.length === 0 && (
                     <div className={`rounded-xl p-3 border text-sm ${
-                      isDark ? 'bg-slate-800/40 border-slate-700/60 text-slate-300' : 'bg-white/45 border-white/60 text-slate-600'
+                      isDark ? 'bg-slate-800/40 border-slate-700/60 text-slate-300' : 'bg-slate-50 border-dashed border-2 border-slate-200 text-slate-600'
                     }`}>
                       Chưa có lịch sử cuộc gọi cho khách hàng này.
                     </div>
@@ -1834,15 +1977,15 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="mt-4 space-y-3">
-                  <div className={`rounded-xl p-3 border ${isDark ? 'bg-slate-800/40 border-slate-700/60 text-slate-200' : 'bg-white/45 border-white/60 text-slate-700'}`}>
+                  <div className={`rounded-xl p-3 border ${isDark ? 'bg-slate-800/40 border-slate-700/60 text-slate-200' : 'bg-white border-slate-200 text-slate-700'}`}>
                     <div className="text-xs opacity-80">Tổng số lần đã gọi</div>
                     <div className="text-xl font-bold">{customerPersonalStats.totalCalls}</div>
                   </div>
-                  <div className={`rounded-xl p-3 border ${isDark ? 'bg-slate-800/40 border-slate-700/60 text-slate-200' : 'bg-white/45 border-white/60 text-slate-700'}`}>
+                  <div className={`rounded-xl p-3 border ${isDark ? 'bg-slate-800/40 border-slate-700/60 text-slate-200' : 'bg-white border-slate-200 text-slate-700'}`}>
                     <div className="text-xs opacity-80">Tổng doanh thu đã đóng góp</div>
                     <div className="text-xl font-bold">{customerPersonalStats.totalRevenue.toLocaleString('vi-VN')} VND</div>
                   </div>
-                  <div className={`rounded-xl p-3 border ${isDark ? 'bg-slate-800/40 border-slate-700/60 text-slate-200' : 'bg-white/45 border-white/60 text-slate-700'}`}>
+                  <div className={`rounded-xl p-3 border ${isDark ? 'bg-slate-800/40 border-slate-700/60 text-slate-200' : 'bg-white border-slate-200 text-slate-700'}`}>
                     <div className="text-xs opacity-80">Trạng thái thường gặp nhất</div>
                     <div className="text-base font-semibold">{customerPersonalStats.mostCommonStatus}</div>
                     <div className="text-sm mt-1">{customerPersonalStats.statusDescription}</div>
@@ -1887,6 +2030,7 @@ export default function Dashboard() {
                   onSubmit={saveCallLog}
                   onValidationError={setToastMessage}
                   isDark={isDark}
+                  loggedInRole={loggedInRole}
                   compact
                   isSaving={isSaving}
                   saveSucceeded={saveSucceeded}

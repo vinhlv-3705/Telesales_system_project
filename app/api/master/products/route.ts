@@ -10,7 +10,7 @@ export async function GET(request: Request) {
             id: string;
             name: string;
             sortOrder: number;
-            products: Array<{ id: string; name: string; code: string | null }>;
+            products: Array<{ id: string; name: string; code: string | null; price: number }>;
           }>
         >;
       };
@@ -43,6 +43,7 @@ export async function GET(request: Request) {
             id: true,
             name: true,
             code: true,
+            price: true,
           },
         },
       },

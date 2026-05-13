@@ -111,7 +111,11 @@ Models:
   - `username`, `password`, `role`
   - lock fields: `isLocked`, `lockedAt`
 - `Customer`
-  - Thông tin khách hàng: `customerCode`, `fullName`, `phone`, `address`, `area`, `groupCode`, ...
+  - Thông tin khách hàng: `customerCode`, `fullName`, `phone`, `address`, `groupCode`, ...
+  - Địa lý:
+    - `district`: ĐỊA BÀN (quận/huyện)
+    - `area`: KHU VỰC (tỉnh/thành)
+  - `bankAccount`: STK ngân hàng (nullable)
   - Phân công: `assignedToId` -> `User`
   - Trạng thái: `status`, `callbackTime`
   - Chăm sóc/đơn hàng:
