@@ -5,7 +5,7 @@ import ProductPickerModal, { type MasterProduct } from "./ProductPickerModal";
 export interface CallFormData {
   customerName: string;
   phoneNumber: string;
-  area: string;
+  area?: string;
   callStatus: '' | "Chốt đơn" | "Từ chối" | "Upsell" | "Hẹn gọi lại" | "Mới";
   revenue: string;
   callbackDate: string;

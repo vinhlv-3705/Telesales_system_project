@@ -67,7 +67,7 @@ export default function EditCallLogModal({ callLog, onSave, onClose, isOpen, isD
               ...callLog,
               customerName: localFormData.customerName.trim(),
               phoneNumber: localFormData.phoneNumber.trim(),
-              area: localFormData.area.trim(),
+              area: localFormData.area?.trim() || '',
               callStatus: ((localFormData.callStatus || "Mới") as CustomerCallLog["callStatus"]),
               callbackDate: localFormData.callbackDate,
               callbackTime: localFormData.callbackTime,
