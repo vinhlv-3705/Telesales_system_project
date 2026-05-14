@@ -142,6 +142,7 @@ export default function Dashboard() {
   const [formData, setFormData] = useState<CallFormData>({
     customerName: '',
     phoneNumber: '',
+    area: '',
     callStatus: '',
     revenue: '',
     callbackDate: new Date().toISOString().split('T')[0],

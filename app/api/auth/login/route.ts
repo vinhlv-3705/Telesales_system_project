@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 type UserRole = "admin" | "user";
 
@@ -44,8 +45,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Tài khoản đang bị khóa." }, { status: 403 });
     }
 
-    if (dbUser && typeof dbUser.password === "string" && dbUser.password === password) {
-      role = dbUser.role === "ADMIN" ? "admin" : "user";
+    if (dbUser && typeof dbUser.password === "string" && dbUser.password) {
+      // Check if password is bcrypt hash (starts with $2)
+      const isBcryptHash = dbUser.password.startsWith('$2');
+      
+      let isPasswordValid = false;
+      
+      if (isBcryptHash) {
+        // Use bcrypt.compare for hashed passwords
+        isPasswordValid = await bcrypt.compare(password, dbUser.password);
+      } else {
+        // Legacy plain text passwords - compare directly
+        isPasswordValid = password === dbUser.password;
+      }
+      
+      if (isPasswordValid) {
+        role = dbUser.role === "ADMIN" ? "admin" : "user";
+      }
     }
   } catch {
     // ignore DB errors and fall back to env credentials

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { UserCircle, Camera, Save, X, TrendingUp, PhoneCall } from "lucide-react";
+import { UserCircle, Camera, Save, X, TrendingUp, PhoneCall, Eye, EyeOff, Lock } from "lucide-react";
 
 interface UserProfile {
   id: string;
@@ -49,6 +49,18 @@ export default function ProfileModal({ open, onClose, isDark = false, onProfileU
     email: "",
     bio: "",
   });
+
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -155,6 +167,47 @@ export default function ProfileModal({ open, onClose, isDark = false, onProfileU
       setToast({ type: "error", message: errorMessage });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setToast({ type: "error", message: "Mật khẩu mới không khớp." });
+      return;
+    }
+    if (passwordData.newPassword.length < 6) {
+      setToast({ type: "error", message: "Mật khẩu mới phải có ít nhất 6 ký tự." });
+      return;
+    }
+    if (!passwordData.currentPassword) {
+      setToast({ type: "error", message: "Vui lòng nhập mật khẩu hiện tại." });
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const res = await fetch("/api/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Không thể đổi mật khẩu");
+      }
+
+      setToast({ type: "success", message: "Đã đổi mật khẩu thành công." });
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (error) {
+      console.error("Error changing password:", error);
+      const errorMessage = error instanceof Error ? error.message : "Không thể đổi mật khẩu";
+      setToast({ type: "error", message: errorMessage });
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -343,6 +396,111 @@ export default function ProfileModal({ open, onClose, isDark = false, onProfileU
                 </div>
               </div>
             </div>
+
+            {/* Password Change Section - Only for non-Admin users */}
+            {user?.role !== "ADMIN" && (
+              <div className={`ui-card p-6 ${isDark ? "text-slate-100" : "text-slate-900"}`}>
+                <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+                  <Lock className="h-5 w-5" />
+                  Đổi mật khẩu
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Mật khẩu hiện tại</label>
+                    <div className="relative">
+                      <input
+                        type={showPasswords.current ? "text" : "password"}
+                        value={passwordData.currentPassword}
+                        onChange={(e) => setPasswordData((prev) => ({ ...prev, currentPassword: e.target.value }))}
+                        placeholder="Nhập mật khẩu hiện tại"
+                        className={`mt-1 h-11 w-full px-3 pr-10 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
+                          isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-300 text-slate-900"
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPasswords((prev) => ({ ...prev, current: !prev.current }))}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                      >
+                        {showPasswords.current ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Mật khẩu mới</label>
+                    <div className="relative">
+                      <input
+                        type={showPasswords.new ? "text" : "password"}
+                        value={passwordData.newPassword}
+                        onChange={(e) => setPasswordData((prev) => ({ ...prev, newPassword: e.target.value }))}
+                        placeholder="Nhập mật khẩu mới (ít nhất 6 ký tự)"
+                        className={`mt-1 h-11 w-full px-3 pr-10 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
+                          isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-300 text-slate-900"
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPasswords((prev) => ({ ...prev, new: !prev.new }))}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                      >
+                        {showPasswords.new ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Xác nhận mật khẩu mới</label>
+                    <div className="relative">
+                      <input
+                        type={showPasswords.confirm ? "text" : "password"}
+                        value={passwordData.confirmPassword}
+                        onChange={(e) => setPasswordData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                        placeholder="Nhập lại mật khẩu mới"
+                        className={`mt-1 h-11 w-full px-3 pr-10 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
+                          isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-300 text-slate-900"
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPasswords((prev) => ({ ...prev, confirm: !prev.confirm }))}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                      >
+                        {showPasswords.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handlePasswordChange}
+                      disabled={changingPassword || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                      className={`h-11 px-4 rounded-2xl border text-sm font-bold transition disabled:opacity-60 ${
+                        isDark
+                          ? "bg-emerald-500/25 border-emerald-400/30 hover:bg-emerald-500/30 text-slate-100"
+                          : "bg-emerald-500/15 border-emerald-500/20 hover:bg-emerald-500/20 text-slate-900"
+                      }`}
+                    >
+                      <Lock className="h-4 w-4" />
+                      {changingPassword ? "Đang cập nhật..." : "Cập nhật mật khẩu"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Admin Message - Only for Admin users */}
+            {user?.role === "ADMIN" && (
+              <div className={`ui-card p-6 ${isDark ? "text-slate-100" : "text-slate-900"}`}>
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                  <Lock className="h-5 w-5 text-amber-500" />
+                  <p className="text-sm text-amber-600 dark:text-amber-400">
+                    Tài khoản Admin không được phép đổi mật khẩu tại đây. Vui lòng liên hệ quản trị viên hệ thống.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 export const dynamic = 'force-dynamic';
 
@@ -113,8 +114,8 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { fullName, phoneNumber, email, avatarUrl, bio } = body;
-    console.log("PATCH Profile - Request body:", { fullName, phoneNumber, email, avatarUrl, bio });
+    const { fullName, phoneNumber, email, avatarUrl, bio, currentPassword, newPassword } = body;
+    console.log("PATCH Profile - Request body:", { fullName, phoneNumber, email, avatarUrl, bio, hasPassword: !!currentPassword && !!newPassword });
 
     const user = await prisma.user.findUnique({
       where: { username },
@@ -127,6 +128,65 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ message: "Không tìm thấy người dùng." }, { status: 404 });
     }
 
+    // Handle password change
+    if (currentPassword && newPassword) {
+      // Block Admin from changing password
+      if (user.role === "ADMIN") {
+        return NextResponse.json({ message: "Tài khoản Admin không được phép đổi mật khẩu tại đây." }, { status: 403 });
+      }
+
+      // If user doesn't have a password yet, allow setting first password
+      if (!user.password) {
+        const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { password: hashedNewPassword },
+        });
+        return NextResponse.json({ message: "Đã đặt mật khẩu thành công." });
+      }
+
+      // Check if password is stored as plain text (legacy data)
+      // Bcrypt hashes always start with $2a$, $2b$, or $2y$
+      const isLegacyPlainTextPassword = !user.password.startsWith('$2');
+
+      let isPasswordValid = false;
+      
+      if (isLegacyPlainTextPassword) {
+        // Compare directly for legacy plain text passwords
+        isPasswordValid = currentPassword === user.password;
+        
+        // If valid, migrate to bcrypt hash
+        if (isPasswordValid) {
+          const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { password: hashedNewPassword },
+          });
+          return NextResponse.json({ message: "Đã đổi mật khẩu thành công." });
+        }
+      } else {
+        // Verify current password with bcrypt
+        isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+      }
+
+      if (!isPasswordValid) {
+        console.log("Password verification failed for user:", user.username);
+        return NextResponse.json({ message: "Mật khẩu hiện tại không đúng." }, { status: 400 });
+      }
+
+      // Hash new password
+      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update password
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { password: hashedNewPassword },
+      });
+
+      return NextResponse.json({ message: "Đã đổi mật khẩu thành công." });
+    }
+
+    // Handle profile update
     const updateData: {
       fullName?: string | null;
       phoneNumber?: string | null;
