@@ -83,6 +83,7 @@ function AdminCustomersInner() {
   const [editForm, setEditForm] = useState({
     customerName: "",
     phoneNumber: "",
+    area: "",
     district: "",
     status: "Mới",
     assignedToId: "",
@@ -95,7 +96,8 @@ function AdminCustomersInner() {
     setEditForm({
       customerName: row.customerName ?? "",
       phoneNumber: row.phoneNumber ?? "",
-      district: (row.district ?? row.area ?? "") as string,
+      area: row.area ?? "",
+      district: row.district ?? "",
       status: row.callStatus ?? "Mới",
       assignedToId: assignedId,
     });
@@ -120,6 +122,7 @@ function AdminCustomersInner() {
         body: JSON.stringify({
           customerName,
           phoneNumber,
+          area: editForm.area.trim(),
           district: editForm.district.trim(),
           status: editForm.status,
           assignedToId: editForm.assignedToId || null,
@@ -711,6 +714,7 @@ function AdminCustomersInner() {
                   <th className={`py-2 font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>Mã KH</th>
                   <th className={`py-2 font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>Tên KH</th>
                   <th className={`py-2 font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>SĐT</th>
+                  <th className={`py-2 font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>Khu vực</th>
                   <th className={`py-2 font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>Địa bàn</th>
                   <th className={`py-2 font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>Trạng thái</th>
                   <th className={`py-2 font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>Lần cuối tương tác</th>
@@ -736,7 +740,8 @@ function AdminCustomersInner() {
                       <td className="py-2 font-semibold whitespace-nowrap">{row.customerCode}</td>
                       <td className="py-2">{row.customerName}</td>
                       <td className="py-2 whitespace-nowrap">{row.phoneNumber}</td>
-                      <td className="py-2 whitespace-nowrap">{(row.district ?? row.area) || "--"}</td>
+                      <td className="py-2 whitespace-nowrap">{row.area || "--"}</td>
+                      <td className="py-2 whitespace-nowrap">{row.district || "--"}</td>
                       <td className="py-2 whitespace-nowrap">{row.callStatus}</td>
                       <td className="py-2 whitespace-nowrap">
                         {row.lastInteractionAt ? new Date(row.lastInteractionAt).toLocaleString("vi-VN") : "--"}
@@ -1281,6 +1286,18 @@ function AdminCustomersInner() {
                     isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-300 text-slate-900"
                   }`}
                   placeholder="VD: 090xxxxxxx"
+                />
+              </div>
+
+              <div>
+                <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Khu vực</label>
+                <input
+                  value={editForm.area}
+                  onChange={(e) => setEditForm((p) => ({ ...p, area: e.target.value }))}
+                  className={`mt-1 h-11 w-full px-3 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
+                    isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-300 text-slate-900"
+                  }`}
+                  placeholder="VD: Thủy Nguyên"
                 />
               </div>
 
