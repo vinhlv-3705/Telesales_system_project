@@ -5,6 +5,7 @@ import ProductPickerModal, { type MasterProduct } from "./ProductPickerModal";
 export interface CallFormData {
   customerName: string;
   phoneNumber: string;
+  area?: string;
   callStatus: '' | "Chốt đơn" | "Từ chối" | "Upsell" | "Hẹn gọi lại" | "Mới";
   revenue: string;
   callbackDate: string;
@@ -365,6 +366,19 @@ export default function CallLogForm({
             readOnly
             className={inputClasses}
             placeholder="Tự động điền theo user đăng nhập"
+          />
+        </div>
+
+        <div>
+          <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>
+            Khu vực
+          </label>
+          <input
+            type="text"
+            value={formData.area}
+            onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+            className={inputClasses}
+            placeholder="Nhập khu vực khách hàng"
           />
         </div>
 
