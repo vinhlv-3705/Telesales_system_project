@@ -556,45 +556,38 @@ function AdminCustomersInner() {
 
           <div className="lg:col-span-3">
             <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Nhân viên</label>
-            <select
+            <CustomSelect
               value={selectedAgentId}
-              onChange={(e) => {
-                setSelectedAgentId(e.target.value);
+              onChange={(value) => {
+                setSelectedAgentId(value);
                 setPage(1);
               }}
               disabled={view === "master"}
-              className={`mt-1 h-11 w-full px-3 rounded-2xl border bg-white/20 backdrop-blur-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 ${
-                isDark ? "border-white/10 text-white" : "border-white/20 text-slate-900"
-              }`}
-            >
-              <option value="">Tất cả</option>
-              {agents.map((agent) => (
-                <option key={agent.id} value={agent.id}>
-                  {agent.username}
-                </option>
-              ))}
-            </select>
+              options={[{ value: "", label: "Tất cả" }, ...agents.map((agent) => ({ value: agent.id, label: agent.username }))]}
+              placeholder="Tất cả"
+              isDark={isDark}
+            />
           </div>
 
           <div className="lg:col-span-2">
             <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Trạng thái</label>
-            <select
+            <CustomSelect
               value={status}
-              onChange={(e) => {
-                setStatus(e.target.value);
+              onChange={(value) => {
+                setStatus(value);
                 setPage(1);
               }}
-              className={`mt-1 h-11 w-full px-3 rounded-2xl border bg-white/20 backdrop-blur-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 ${
-                isDark ? "border-white/10 text-white" : "border-white/20 text-slate-900"
-              }`}
-            >
-              <option value="">Tất cả</option>
-              <option value="Mới">Mới</option>
-              <option value="Hẹn gọi lại">Hẹn gọi lại</option>
-              <option value="Chốt đơn">Chốt đơn</option>
-              <option value="Từ chối">Từ chối</option>
-              <option value="Upsell">Upsell</option>
-            </select>
+              options={[
+                { value: "", label: "Tất cả" },
+                { value: "Mới", label: "Mới" },
+                { value: "Hẹn gọi lại", label: "Hẹn gọi lại" },
+                { value: "Chốt đơn", label: "Chốt đơn" },
+                { value: "Từ chối", label: "Từ chối" },
+                { value: "Upsell", label: "Upsell" },
+              ]}
+              placeholder="Tất cả"
+              isDark={isDark}
+            />
           </div>
 
           <div className="lg:col-span-3">
@@ -626,20 +619,20 @@ function AdminCustomersInner() {
           </div>
           <div className="flex items-center gap-2">
             <label className={`text-sm ${isDark ? "text-slate-300" : "text-slate-700"}`}>Page size</label>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
+            <CustomSelect
+              value={String(pageSize)}
+              onChange={(value) => {
+                setPageSize(Number(value));
                 setPage(1);
               }}
-              className={`h-10 px-3 rounded-2xl border bg-white/20 backdrop-blur-2xl text-sm ${
-                isDark ? "border-white/10 text-white" : "border-white/20 text-slate-900"
-              }`}
-            >
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
+              options={[
+                { value: "25", label: "25" },
+                { value: "50", label: "50" },
+                { value: "100", label: "100" },
+              ]}
+              isDark={isDark}
+              className="w-24"
+            />
           </div>
         </div>
 
@@ -650,20 +643,13 @@ function AdminCustomersInner() {
               <div className={`text-xs ${isDark ? "text-slate-300" : "text-slate-600"}`}>Đã chọn: {selectedList.length}</div>
               {selectedList.length > 0 && (
                 <div className="flex items-center gap-2 flex-wrap">
-                  <select
+                  <CustomSelect
                     value={bulkAssignAgentId}
-                    onChange={(e) => setBulkAssignAgentId(e.target.value)}
-                    className={`h-10 px-3 rounded-2xl border bg-white/20 backdrop-blur-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 ${
-                      isDark ? "border-white/10 text-white" : "border-white/20 text-slate-900"
-                    }`}
-                  >
-                    <option value="">Gán cho nhân viên...</option>
-                    {agents.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.username}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(value) => setBulkAssignAgentId(value)}
+                    options={[{ value: "", label: "Gán cho nhân viên..." }, ...agents.map((a) => ({ value: a.id, label: a.username }))]}
+                    isDark={isDark}
+                    className="w-48"
+                  />
 
                   <button
                     type="button"

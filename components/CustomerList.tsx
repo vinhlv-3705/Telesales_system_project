@@ -169,6 +169,7 @@ export default function CustomerList({ customers, onCall, activeCustomerId, isDa
                 </div>
                 <div className={`text-xs mt-1.5 space-y-0.5 ${isDark ? "text-slate-300" : "text-slate-700"}`}>
                   <div><span className="font-semibold">SĐT:</span> {customer.phoneNumber || "--"}</div>
+                  <div><span className="font-semibold">Khu vực:</span> {customer.area || "--"}</div>
                   <div><span className="font-semibold">Địa chỉ:</span> {customer.address || "--"}</div>
                 </div>
               </motion.div>
