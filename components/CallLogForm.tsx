@@ -375,7 +375,7 @@ export default function CallLogForm({
           </label>
           <input
             type="text"
-            value={formData.area}
+            value={formData.area || ""}
             onChange={(e) => setFormData({ ...formData, area: e.target.value })}
             className={inputClasses}
             placeholder="Nhập khu vực khách hàng"

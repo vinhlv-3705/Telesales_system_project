@@ -12,7 +12,6 @@ interface UserProfile {
   phoneNumber: string | null;
   email: string | null;
   avatarUrl: string | null;
-  bio: string | null;
   role: string;
   stats?: {
     totalCalls: number;
@@ -47,7 +46,6 @@ export default function ProfileModal({ open, onClose, isDark = false, onProfileU
     fullName: "",
     phoneNumber: "",
     email: "",
-    bio: "",
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -79,7 +77,6 @@ export default function ProfileModal({ open, onClose, isDark = false, onProfileU
         fullName: data.fullName || "",
         phoneNumber: data.phoneNumber || "",
         email: data.email || "",
-        bio: data.bio || "",
       });
       if (data.avatarUrl) {
         setAvatarPreview(data.avatarUrl);
@@ -119,7 +116,6 @@ export default function ProfileModal({ open, onClose, isDark = false, onProfileU
         phoneNumber: formData.phoneNumber || undefined,
         email: formData.email || undefined,
         avatarUrl: avatarPreview || undefined,
-        bio: formData.bio || undefined,
       };
       console.log("Sending to API:", payload);
 
@@ -202,6 +198,10 @@ export default function ProfileModal({ open, onClose, isDark = false, onProfileU
 
       setToast({ type: "success", message: "Đã đổi mật khẩu thành công." });
       setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      
+      setTimeout(() => {
+        onClose();
+      }, 1500);
     } catch (error) {
       console.error("Error changing password:", error);
       const errorMessage = error instanceof Error ? error.message : "Không thể đổi mật khẩu";
@@ -366,19 +366,6 @@ export default function ProfileModal({ open, onClose, isDark = false, onProfileU
                   />
                 </div>
 
-                <div>
-                  <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Chữ ký cá nhân (Bio)</label>
-                  <textarea
-                    value={formData.bio}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, bio: e.target.value }))}
-                    placeholder="Giới thiệu ngắn về bản thân..."
-                    rows={4}
-                    className={`mt-1 w-full px-3 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 resize-none ${
-                      isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-300 text-slate-900"
-                    }`}
-                  />
-                </div>
-
                 <div className="flex justify-end">
                   <button
                     type="button"
@@ -408,11 +395,15 @@ export default function ProfileModal({ open, onClose, isDark = false, onProfileU
                   <div>
                     <label className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-700"}`}>Mật khẩu hiện tại</label>
                     <div className="relative">
+                      {/* Hidden username field to help browser autofill match the correct credentials */}
+                      <input type="text" name="username" value={user?.username || ""} readOnly className="hidden" autoComplete="username" />
                       <input
                         type={showPasswords.current ? "text" : "password"}
+                        name="current-password"
                         value={passwordData.currentPassword}
                         onChange={(e) => setPasswordData((prev) => ({ ...prev, currentPassword: e.target.value }))}
                         placeholder="Nhập mật khẩu hiện tại"
+                        autoComplete="current-password"
                         className={`mt-1 h-11 w-full px-3 pr-10 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
                           isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-300 text-slate-900"
                         }`}
@@ -432,9 +423,11 @@ export default function ProfileModal({ open, onClose, isDark = false, onProfileU
                     <div className="relative">
                       <input
                         type={showPasswords.new ? "text" : "password"}
+                        name="new-password"
                         value={passwordData.newPassword}
                         onChange={(e) => setPasswordData((prev) => ({ ...prev, newPassword: e.target.value }))}
                         placeholder="Nhập mật khẩu mới (ít nhất 6 ký tự)"
+                        autoComplete="new-password"
                         className={`mt-1 h-11 w-full px-3 pr-10 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
                           isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-300 text-slate-900"
                         }`}
@@ -454,9 +447,11 @@ export default function ProfileModal({ open, onClose, isDark = false, onProfileU
                     <div className="relative">
                       <input
                         type={showPasswords.confirm ? "text" : "password"}
+                        name="confirm-password"
                         value={passwordData.confirmPassword}
                         onChange={(e) => setPasswordData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
                         placeholder="Nhập lại mật khẩu mới"
+                        autoComplete="new-password"
                         className={`mt-1 h-11 w-full px-3 pr-10 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 ${
                           isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-300 text-slate-900"
                         }`}

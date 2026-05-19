@@ -447,43 +447,59 @@ export default function Dashboard() {
     void fetchAgents();
   }, [loggedInRole]);
 
-  useEffect(() => {
-    const fetchCustomers = async () => {
-      try {
-        setCustomerLoadError(null);
-        const query = loggedInRole === 'ADMIN' && adminAssignedToId ? `?assignedToId=${encodeURIComponent(adminAssignedToId)}` : '';
-        const response = await fetch(`/api/customers${query}`, { cache: 'no-store' });
-        if (!response.ok) {
-          let message = `Failed to load customers (HTTP ${response.status})`;
-          try {
-            const data = (await response.json()) as { message?: string };
-            if (data?.message) {
-              message = data.message;
-            }
-          } catch {
-            // ignore when response is not JSON
-          }
-          throw new Error(message);
-        }
-        const data = (await response.json()) as CustomerCallLog[];
-        setCallLogs(data);
-        const newCustomers = data.filter((item) => item.callStatus === 'Mới');
-        if (newCustomers.length > 0) {
-          setActiveCustomerId((prev) => prev ?? newCustomers[0].id);
-          setSelectedCustomer((prev) => prev ?? newCustomers[0]);
-          setResumeProcessedEditing(false);
-        }
-      } catch (error) {
-        console.error('Error fetching customers from DB:', error);
-        const message = error instanceof Error ? error.message : 'Không tải được khách hàng từ DB. Vui lòng refresh hoặc đăng nhập lại.';
-        setCustomerLoadError(message);
-      } finally {
-        setIsLoadingCustomers(false);
-      }
-    };
+  const fetchCustomers = useCallback(async () => {
+    try {
+      setIsLoadingCustomers(true);
+      setCustomerLoadError(null);
 
-    void fetchCustomers();
-  }, [loggedInRole, adminAssignedToId]);
+      const params = new URLSearchParams({
+        q: searchTerm,
+        view: queueView,
+        area: selectedAreaKey !== '__ALL__' ? selectedAreaKey : '',
+        district: selectedDistrictKey !== '__ALL__' ? selectedDistrictKey : '',
+        processedFilter: queueView === 'processed' ? processedFilter : '',
+        assignedToId: adminAssignedToId,
+      });
+
+      const response = await fetch(`/api/customers?${params.toString()}`, { cache: 'no-store' });
+      if (!response.ok) {
+        let message = `Failed to load customers (HTTP ${response.status})`;
+        try {
+          const data = (await response.json()) as { message?: string };
+          if (data?.message) {
+            message = data.message;
+          }
+        } catch {
+          // ignore when response is not JSON
+        }
+        throw new Error(message);
+      }
+
+      const data = (await response.json()) as CustomerCallLog[];
+      setCallLogs(data);
+
+      // Tự động chọn khách hàng 'Mới' đầu tiên nếu chưa có ai được chọn
+      const newCustomers = data.filter((item) => item.callStatus === 'Mới');
+      if (newCustomers.length > 0 && !activeCustomerId) {
+        setActiveCustomerId(newCustomers[0].id);
+        setSelectedCustomer(newCustomers[0]);
+        setResumeProcessedEditing(false);
+      }
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      const message = error instanceof Error ? error.message : 'Không tải được khách hàng từ server.';
+      setCustomerLoadError(message);
+    } finally {
+      setIsLoadingCustomers(false);
+    }
+  }, [searchTerm, queueView, selectedAreaKey, selectedDistrictKey, processedFilter, adminAssignedToId, activeCustomerId]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void fetchCustomers();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [fetchCustomers]);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -862,6 +878,7 @@ export default function Dashboard() {
       setFormData({
         customerName: nextCustomer?.customerName ?? '',
         phoneNumber: nextCustomer?.phoneNumber ?? '',
+        area: nextCustomer?.area ?? '',
         callStatus: '',
         revenue: '',
         callbackDate: new Date().toISOString().split('T')[0],
@@ -951,6 +968,7 @@ export default function Dashboard() {
       ...prev,
       customerName: customer.customerName,
       phoneNumber: customer.phoneNumber,
+      area: customer.area || '',
       callStatus: ['Chốt đơn', 'Từ chối', 'Upsell', 'Hẹn gọi lại'].includes(customer.callStatus)
         ? customer.callStatus
         : '',
