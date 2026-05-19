@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Sun, Moon, LogOut, Phone, Cake, Package, Tag, Copy, ChevronDown, Pin, X, Pencil, Check, CalendarDays, UserCircle } from 'lucide-react';
+import { Search, Sun, Moon, LogOut, Phone, Cake, Package, Tag, Copy, ChevronDown, Pin, X, Pencil, Check, CalendarDays, UserCircle, LoaderCircle, Save } from 'lucide-react';
 import { motion } from 'framer-motion';
 import CallLogForm, { CallFormData } from '../components/CallLogForm';
 import CustomerList from '../components/CustomerList';
@@ -145,7 +145,7 @@ export default function Dashboard() {
     area: '',
     callStatus: '',
     revenue: '',
-    callbackDate: new Date().toISOString().split('T')[0],
+    callbackDate: '',
     callbackTime: '',
     assignedTo: '',
     note: '',
@@ -168,6 +168,7 @@ export default function Dashboard() {
   const [activeCustomerId, setActiveCustomerId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [queueView, setQueueView] = useState<QueueView>('pending');
+
   const [processedFilter, setProcessedFilter] = useState<ProcessedFilter>('all');
   const [selectedAreaKey, setSelectedAreaKey] = useState<string>('__ALL__');
   const [areaDropdownOpen, setAreaDropdownOpen] = useState(false);
@@ -881,7 +882,7 @@ export default function Dashboard() {
         area: nextCustomer?.area ?? '',
         callStatus: '',
         revenue: '',
-        callbackDate: new Date().toISOString().split('T')[0],
+        callbackDate: '',
         callbackTime: '',
         assignedTo: loggedInUser,
         note: '',
@@ -897,6 +898,38 @@ export default function Dashboard() {
       setTimeout(() => setSaveSucceeded(false), 1200);
     }
   };
+
+  const saveQuickCallback = useCallback(async (id: string, data: { callbackDate: string; note: string }) => {
+    try {
+      const response = await fetch('/api/customers/update-callback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          customerId: id, 
+          callbackDate: data.callbackDate, 
+          note: data.note,
+          agentName: loggedInUser
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Lỗi Server (HTTP ${response.status})`);
+      }
+      
+      const updateFn = (c: CustomerCallLog) => c.id === id ? { ...c, callbackDate: data.callbackDate, note: data.note, assignedToName: loggedInUser } : c;
+      setCallLogs(prev => prev.map(updateFn));
+      
+      if (selectedCustomer?.id === id) {
+        setSelectedCustomer(prev => prev ? updateFn(prev) : null);
+      }
+
+      setToastMessage('Đã cập nhật lịch hẹn thành công.');
+    } catch (error) {
+      console.error('Quick edit error:', error);
+      setToastMessage(error instanceof Error ? error.message : 'Lỗi khi cập nhật lịch hẹn.');
+    }
+  }, [selectedCustomer, loggedInUser, toastMessage]);
 
   const activeCustomer = (() => {
     if (selectedCustomer && filteredCallLogs.some((item) => item.id === selectedCustomer.id)) {
@@ -973,7 +1006,7 @@ export default function Dashboard() {
         ? customer.callStatus
         : '',
       revenue: '',
-      callbackDate: customer.callbackDate || new Date().toISOString().split('T')[0],
+      callbackDate: customer.callbackDate || '',
       callbackTime: customer.callbackTime ?? '',
       assignedTo: loggedInUser,
       note: customer.note,
@@ -1654,6 +1687,7 @@ export default function Dashboard() {
                 activeCustomerId={activeCustomer?.id}
                 isDark={isDark}
                 showCallbackSchedule={queueView === 'callback'}
+                onSaveQuickEdit={saveQuickCallback}
               />
               {isLoadingCustomers && (
                 <p className={`text-xs px-2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Đang tải khách hàng từ DB...</p>
@@ -2034,7 +2068,7 @@ export default function Dashboard() {
                       }`}
                     >
                       <div className="text-xs opacity-80">{new Date(item.timestamp).toLocaleString('vi-VN')}</div>
-                      <div className="text-sm mt-1"><span className="font-semibold">Người xử lý:</span> {item.agentName}</div>
+                      <div className="text-sm mt-1"><span className="font-semibold">Người thực hiện:</span> {item.agentName}</div>
                       <div className="text-sm"><span className="font-semibold">Kết quả:</span> {item.status}</div>
                       <div className="text-sm"><span className="font-semibold">Doanh thu:</span> {Number(item.revenue).toLocaleString('vi-VN')} VND</div>
                       <div className="text-sm"><span className="font-semibold">Mặt hàng đã lấy:</span> {(item.productsPurchased || '').trim() ? item.productsPurchased : '--'}</div>

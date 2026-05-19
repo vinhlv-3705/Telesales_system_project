@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/logout"];
 const ADMIN_ONLY_PREFIXES = ["/admin"];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSession = Boolean(request.cookies.get("telesales_session")?.value);
   const role = request.cookies.get("telesales_role")?.value;
