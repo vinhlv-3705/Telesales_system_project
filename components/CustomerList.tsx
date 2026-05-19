@@ -1,4 +1,4 @@
-import { Clock3, PhoneCall } from "lucide-react";
+import { Clock3, PhoneCall, AlertTriangle } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 
@@ -93,20 +93,38 @@ export default function CustomerList({ customers, onCall, activeCustomerId, isDa
         <div className="relative" style={{ height: totalHeight }}>
           {visibleCustomers.map((customer, localIndex) => {
             const index = startIndex + localIndex;
-            const callbackEpoch = customer.callbackDate && customer.callbackTime
-              ? new Date(`${customer.callbackDate}T${customer.callbackTime}`).getTime()
+            
+            // Cải tiến logic tính toán: Nếu không có giờ, mặc định là 09:00 sáng
+            const callbackTimeStr = (customer.callbackTime || "").trim() || "09:00";
+            const callbackEpoch = customer.callbackDate
+              ? new Date(`${customer.callbackDate}T${callbackTimeStr}`).getTime()
               : null;
-            const isOverdue =
-              customer.callStatus === "Hẹn gọi lại" &&
-              typeof callbackEpoch === "number" &&
+
+            const isOverdue = 
+              customer.callStatus === "Hẹn gọi lại" && 
+              callbackEpoch !== null && 
               callbackEpoch < now;
 
             return (
               <motion.div
                 key={customer.id}
                 initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.12 }}
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                  borderColor: isOverdue ? ["rgba(244, 63, 94, 0.4)", "rgba(244, 63, 94, 0.9)", "rgba(244, 63, 94, 0.4)"] : undefined,
+                  backgroundColor: isOverdue 
+                    ? (isDark 
+                        ? ["rgba(244, 63, 94, 0.08)", "rgba(244, 63, 94, 0.18)", "rgba(244, 63, 94, 0.08)"]
+                        : ["rgba(255, 241, 242, 0.7)", "rgba(255, 228, 230, 1)", "rgba(255, 241, 242, 0.7)"])
+                    : undefined,
+                }}
+                transition={{
+                  opacity: { duration: 0.2 },
+                  y: { duration: 0.2 },
+                  borderColor: isOverdue ? { duration: 1.5, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 },
+                  backgroundColor: isOverdue ? { duration: 1.5, repeat: Infinity, ease: "easeInOut" } : { duration: 0.2 },
+                }}
                 onClick={() => {
                   const selectedText = typeof window !== "undefined" ? window.getSelection()?.toString() : "";
                   if (selectedText && selectedText.trim().length > 0) return;
@@ -120,9 +138,11 @@ export default function CustomerList({ customers, onCall, activeCustomerId, isDa
                     ? isDark
                       ? "bg-sky-500/15 border-sky-300/40 shadow-[0_14px_35px_rgba(56,189,248,0.20)]"
                       : "bg-blue-50 border-slate-200 border-l-4 border-l-blue-600 shadow-[0_14px_35px_rgba(2,132,199,0.14)]"
-                    : isDark
-                      ? "bg-white/5 border-white/10 hover:bg-white/10"
-                      : "bg-white border-slate-200 shadow-sm hover:shadow hover:bg-slate-50"
+                    : isOverdue
+                      ? isDark ? "bg-rose-500/10 border-rose-500/40" : "bg-rose-50 border-rose-200 shadow-sm"
+                      : isDark
+                        ? "bg-white/5 border-white/10 hover:bg-white/10"
+                        : "bg-white border-slate-200 shadow-sm hover:shadow hover:bg-slate-50"
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -131,6 +151,12 @@ export default function CustomerList({ customers, onCall, activeCustomerId, isDa
                       {customer.customerCode}
                     </div>
                   </div>
+                  {isOverdue && (
+                    <div className="flex items-center gap-1 bg-rose-500 text-white px-2 py-0.5 rounded-full text-[10px] font-black animate-pulse">
+                      <AlertTriangle className="h-3 w-3" />
+                      QUÁ HẠN
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={(event) => {
